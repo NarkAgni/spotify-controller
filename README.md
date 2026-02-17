@@ -22,6 +22,7 @@
   <img src="media/panel.png" alt="Panel View" width="100%" style="border-radius: 8px; border: 1px solid #333; margin-bottom: 10px;">
   <img src="media/popup.png" alt="Popup Player" width="48%" style="border-radius: 8px; border: 1px solid #333;">
   <img src="media/lyrics.png" alt="Lyrics View" width="48%" style="border-radius: 8px; border: 1px solid #333;">
+  <img src="media/prefs.png" alt="Prefs View" width="48%" style="border-radius: 8px; border: 1px solid #333;">
 </div>
 
 <hr>
