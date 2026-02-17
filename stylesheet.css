@@ -1,0 +1,143 @@
+/* Popup Menu Container - NO SHADOW */
+.spotify-popup-menu {
+    box-shadow: none !important;
+    background-color: transparent;
+}
+
+/* Album Art Container */
+.album-art-item-container {
+    padding: 12px; 
+    background-color: transparent;
+}
+
+/* 1. Song title aur cover art ke beech gap thoda kam kiya (20px -> 14px) */
+.art-content-box {
+    spacing: 14px; 
+}
+
+.album-art-icon {
+    box-shadow: none; 
+}
+
+/* Text Info Box */
+.text-info-box {
+    spacing: 2px;
+    margin: 0px !important; 
+    text-align: center;
+}
+
+/* Metadata Labels */
+.track-title-label {
+    font-weight: 800;
+    text-align: center;
+}
+
+.track-artist-label {
+    font-weight: 500;
+    opacity: 0.8;
+    text-align: center;
+    padding-bottom: 0px !important;
+    margin-bottom: 0px !important;
+}
+
+/* Slider & Time */
+.slider-item {
+    padding: 0px;
+    padding-bottom: 0px !important;
+    background-color: transparent;
+}
+
+.time-label {
+    font-size: 0.85em;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+/* Slider aur Buttons ke beech gap kam karne ke liye */
+.media-controls-item {
+    padding: 0px 4px 10px 4px; 
+    background-color: transparent;
+}
+
+/* 2. Buttons ko left/right se kam kiya (spacing 24px -> 16px) */
+.media-controls-box {
+    spacing: 16px; 
+    text-align: center;
+    padding: 5px 10px;
+}
+
+/* --- PERFECT CIRCLE BUTTONS (Next/Prev/Shuffle/Repeat) --- */
+.popup-control-btn {
+    padding: 0px !important;
+    margin: 0px !important;
+    
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    
+    border-radius: 22px !important; 
+    background-color: transparent;
+    transition: all 150ms ease-in-out;
+    border: none;
+}
+
+.popup-control-btn:hover { 
+    background-color: rgba(255, 255, 255, 0.15); 
+}
+
+.popup-control-btn:active {
+    transform: scale(0.9);
+}
+
+/* --- PLAY/PAUSE BUTTON (Solid White & Black Icon) --- */
+.large-control-btn {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+    border-radius: 29px !important;
+    background-color: #ffffff !important; 
+    border: none;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+}
+
+.large-control-btn StIcon,
+.large-control-btn > StIcon {
+    color: #000000 !important;
+}
+
+.large-control-btn:hover { 
+    background-color: #eeeeee !important;
+    transform: scale(1.05);
+}
+
+/* Panel Styles */
+.panel-status-menu-box { 
+    spacing: 4px; 
+}
+
+.media-ctrl-btn { 
+    padding: 2px 4px; 
+}
+
+.system-status-icon { 
+    icon-size: 16px; 
+}
+
+/* New CSS for Lyrics Overlay */
+.lyrics-overlay-label {
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black */
+    border-radius: 99px;
+    padding: 8px 16px;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.popup-header-label {
+    font-weight: 800;
+    font-size: 1.2em; /* Thoda bada text */
+    padding-bottom: 0px;
+    color: #ffffff; /* Ya jo color theme ho */
+}

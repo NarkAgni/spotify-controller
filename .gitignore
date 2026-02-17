@@ -1,0 +1,10 @@
+# Compiled schemas
+schemas/gschemas.compiled
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Builds
+*.zip
+*.tar.gz
