@@ -79,21 +79,29 @@ export const MediaIndicator = GObject.registerClass(
             let prevIcon = new St.Icon({ icon_name: 'media-skip-backward-symbolic', style_class: 'system-status-icon' });
             this.prevBtn = new St.Button({ child: prevIcon, style_class: 'media-ctrl-btn' });
             
-            this.prevBtn.connect('clicked', () => {
+            this.prevBtn.connect('button-press-event', () => Clutter.EVENT_STOP);
+            this.prevBtn.connect('button-release-event', (actor, event) => {
                 this.activeProxy?.controls().previous();
                 if (this._popup) this._popup.resetPosition();
+                return Clutter.EVENT_STOP;
             });
 
             this.playIcon = new St.Icon({ icon_name: 'media-playback-start-symbolic', style_class: 'system-status-icon' });
             this.playBtn = new St.Button({ child: this.playIcon, style_class: 'media-ctrl-btn' });
-            this.playBtn.connect('clicked', () => this.activeProxy?.controls().playPause());
+            this.playBtn.connect('button-press-event', () => Clutter.EVENT_STOP);
+            this.playBtn.connect('button-release-event', (actor, event) => {
+                this.activeProxy?.controls().playPause();
+                return Clutter.EVENT_STOP;
+            });
 
             let nextIcon = new St.Icon({ icon_name: 'media-skip-forward-symbolic', style_class: 'system-status-icon' });
             this.nextBtn = new St.Button({ child: nextIcon, style_class: 'media-ctrl-btn' });
             
-            this.nextBtn.connect('clicked', () => {
+            this.nextBtn.connect('button-press-event', () => Clutter.EVENT_STOP);
+            this.nextBtn.connect('button-release-event', (actor, event) => {
                 this.activeProxy?.controls().next();
                 if (this._popup) this._popup.resetPosition();
+                return Clutter.EVENT_STOP;
             });
 
             this.btnBox.add_child(this.prevBtn);
