@@ -5,6 +5,7 @@ import Gdk from 'gi://Gdk';
 import Pango from 'gi://Pango';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+
 export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
     fillPreferencesWindow(window) {
@@ -13,6 +14,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
         const createResetBtn = this._makeResetBtn(settings);
         const createGroupReset = this._makeGroupResetBtn(settings);
+        
         this._buildGeneralPage(window, settings, createResetBtn);
         this._buildVisualsPage(window, settings, createResetBtn, createGroupReset);
         this._buildPaddingsPage(window, settings, createResetBtn, createGroupReset);
@@ -21,7 +23,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
     _makeResetBtn(settings) {
         return (key) => {
-            const box = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6 });
+            const box = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 2 });
             const divider = new Gtk.Separator({ orientation: Gtk.Orientation.VERTICAL });
             divider.set_margin_top(12);
             divider.set_margin_bottom(12);
@@ -74,7 +76,9 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
             btn.connect('clicked', () => {
                 for (const key of keys) {
-                     if (settings.settings_schema.has_key(key)) settings.reset(key);
+                     if (settings.settings_schema.has_key(key)) {
+                         settings.reset(key);
+                     }
                 }
             });
 
@@ -98,6 +102,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
         this._buildPanelLayoutGroup(page, settings, createResetBtn);
         this._buildVisibilityGroup(page, settings);
+        this._buildMouseActionsGroup(page, settings);
     }
 
     _buildPanelLayoutGroup(page, settings, createResetBtn) {
@@ -127,21 +132,23 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         layoutRow.connect('notify::selected', () => settings.set_string('layout-order', layoutValues[layoutRow.selected]));
         group.add(layoutRow);
 
-        const spacingRow = new Adw.SpinRow({
-            title: 'Button Spacing',
-            icon_name: 'view-more-horizontal-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 0, upper: 50, step_increment: 1 })
+        const spacingRow = new Adw.ActionRow({ title: 'Button Spacing', icon_name: 'view-more-horizontal-symbolic' });
+        const spacingSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 0, upper: 50, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('button-spacing', spacingRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('button-spacing', spacingSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        spacingRow.add_suffix(spacingSpin);
         spacingRow.add_suffix(createResetBtn('button-spacing'));
         group.add(spacingRow);
 
-        const marginRow = new Adw.SpinRow({
-            title: 'Label Margin',
-            icon_name: 'format-indent-more-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 0, upper: 100, step_increment: 1 })
+        const marginRow = new Adw.ActionRow({ title: 'Label Margin', icon_name: 'format-indent-more-symbolic' });
+        const marginSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 0, upper: 100, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('label-margin', marginRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('label-margin', marginSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        marginRow.add_suffix(marginSpin);
         marginRow.add_suffix(createResetBtn('label-margin'));
         group.add(marginRow);
     }
@@ -161,6 +168,30 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         addToggle('show-next', 'Show Next Button', 'media-skip-forward-symbolic');
         addToggle('show-panel-title', 'Show Song Title', 'text-x-generic-symbolic');
         addToggle('show-panel-artist', 'Show Artist Name', 'avatar-default-symbolic');
+    }
+
+    _buildMouseActionsGroup(page, settings) {
+        const group = new Adw.PreferencesGroup({ title: 'Top Panel Mouse Actions' });
+        page.add(group);
+
+        const actions = ['none', 'menu', 'play-pause', 'next', 'prev', 'playlist'];
+        const labels = ['Do Nothing', 'Open Menu', 'Play / Pause', 'Next Track', 'Previous Track', 'Open Playlist'];
+        const list = new Gtk.StringList({ strings: labels });
+
+        const addCombo = (title, key) => {
+            const row = new Adw.ComboRow({ title, model: list });
+            let current = 'menu';
+            try { 
+                current = settings.get_string(key); 
+            } catch (e) {}
+            
+            row.selected = Math.max(0, actions.indexOf(current));
+            row.connect('notify::selected', () => settings.set_string(key, actions[row.selected]));
+            group.add(row);
+        };
+
+        addCombo('Left Click', 'left-click-action');
+        addCombo('Right Click', 'right-click-action');
     }
 
     _buildVisualsPage(window, settings, createResetBtn, createGroupReset) {
@@ -190,12 +221,13 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         settings.bind('custom-header-text', headerEntry, 'text', Gio.SettingsBindFlags.DEFAULT);
         group.add(headerEntry);
 
-        const headerSizeRow = new Adw.SpinRow({
-            title: 'Header Font Size',
-            icon_name: 'format-text-larger-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 8, upper: 30, step_increment: 1 })
+        const headerSizeRow = new Adw.ActionRow({ title: 'Header Font Size', icon_name: 'format-text-larger-symbolic' });
+        const headerSizeSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 8, upper: 30, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('header-font-size', headerSizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('header-font-size', headerSizeSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        headerSizeRow.add_suffix(headerSizeSpin);
         headerSizeRow.add_suffix(createResetBtn('header-font-size'));
         group.add(headerSizeRow);
 
@@ -216,6 +248,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
             icon_name: 'preferences-desktop-wallpaper-symbolic',
             model: new Gtk.StringList({ strings: ['Ambient (Cover Art)', 'Custom Color'] })
         });
+        
         const bgModes = ['ambient', 'custom'];
         let currentMode = settings.get_string('bg-mode');
         bgModeRow.selected = Math.max(0, bgModes.indexOf(currentMode));
@@ -231,8 +264,9 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         const updateBgVisibility = () => {
             const idx = bgModeRow.selected;
             customColorRow.visible = (idx === 1);
-            if (settings.get_string('bg-mode') !== bgModes[idx])
+            if (settings.get_string('bg-mode') !== bgModes[idx]) {
                 settings.set_string('bg-mode', bgModes[idx]);
+            }
         };
         bgModeRow.connect('notify::selected', updateBgVisibility);
         updateBgVisibility();
@@ -250,44 +284,57 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         expander.add_suffix(createGroupReset(keys));
         parentGroup.add(expander);
 
-        const artSizeRow = new Adw.SpinRow({
-            title: 'Cover Art Size (px)',
-            icon_name: 'image-x-generic-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 200, upper: 500, step_increment: 10 })
+        const artSizeRow = new Adw.ActionRow({ title: 'Cover Art Size (px)', icon_name: 'image-x-generic-symbolic' });
+        const artSizeSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 200, upper: 500, step_increment: 10 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('cover-art-size', artSizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('cover-art-size', artSizeSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        artSizeRow.add_suffix(artSizeSpin);
         artSizeRow.add_suffix(createResetBtn('cover-art-size'));
         expander.add_row(artSizeRow);
 
-        const radiusRow = new Adw.SpinRow({
-            title: 'Corner Roundness',
-            icon_name: 'object-select-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 0, upper: 170, step_increment: 1 })
+        const radiusRow = new Adw.ActionRow({ title: 'Corner Roundness', icon_name: 'object-select-symbolic' });
+        const radiusSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 0, upper: 170, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('cover-art-radius', radiusRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('cover-art-radius', radiusSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        radiusRow.add_suffix(radiusSpin);
         radiusRow.add_suffix(createResetBtn('cover-art-radius'));
         expander.add_row(radiusRow);
 
-        const rotateRow = new Adw.SpinRow({
-            title: 'Vinyl Rotation Speed',
-            subtitle: 'Visible when roundness is 170',
-            icon_name: 'media-playlist-repeat-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 0, upper: 50, step_increment: 1 })
+        const rotateRow = new Adw.ActionRow({ 
+            title: 'Vinyl Rotation Speed', 
+            subtitle: 'Visible when roundness is 170', 
+            icon_name: 'media-playlist-repeat-symbolic' 
         });
-        try { settings.bind('art-rotate-speed', rotateRow, 'value', Gio.SettingsBindFlags.DEFAULT); } catch (e) { }
+        const rotateSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 0, upper: 50, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
+        });
+        
+        try { 
+            settings.bind('art-rotate-speed', rotateSpin, 'value', Gio.SettingsBindFlags.DEFAULT); 
+        } catch (e) { }
+        
+        rotateRow.add_suffix(rotateSpin);
         rotateRow.add_suffix(createResetBtn('art-rotate-speed'));
         expander.add_row(rotateRow);
 
-        const updateVinyl = () => { rotateRow.visible = (radiusRow.value >= 170); };
-        radiusRow.connect('notify::value', updateVinyl);
+        const updateVinyl = () => { 
+            rotateRow.visible = (radiusSpin.get_value() >= 170); 
+        };
+        radiusSpin.connect('notify::value', updateVinyl);
         updateVinyl();
 
-        const btnSizeRow = new Adw.SpinRow({
-            title: 'Control Button Icon Size',
-            icon_name: 'view-fullscreen-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 16, upper: 32, step_increment: 1 })
+        const btnSizeRow = new Adw.ActionRow({ title: 'Control Button Icon Size', icon_name: 'view-fullscreen-symbolic' });
+        const btnSizeSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 16, upper: 32, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('popup-icon-size', btnSizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('popup-icon-size', btnSizeSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        btnSizeRow.add_suffix(btnSizeSpin);
         btnSizeRow.add_suffix(createResetBtn('popup-icon-size'));
         expander.add_row(btnSizeRow);
     }
@@ -317,8 +364,11 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         const fontDialog = new Gtk.FontDialog();
         const fontBtn = new Gtk.FontDialogButton({ dialog: fontDialog, valign: Gtk.Align.CENTER });
         const savedFont = settings.get_string('custom-font-family');
+        
         if (savedFont) {
-            try { fontBtn.set_font_desc(Pango.FontDescription.from_string(savedFont)); } catch (e) { }
+            try { 
+                fontBtn.set_font_desc(Pango.FontDescription.from_string(savedFont)); 
+            } catch (e) { }
         }
         fontBtn.connect('notify::font-desc', () => {
             const desc = fontBtn.get_font_desc();
@@ -328,12 +378,13 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         expander.add_row(fontRow);
 
         const addTextRow = (title, sizeKey, colorKey, defaultColor, sizeMin, sizeMax, icon) => {
-            const sizeRow = new Adw.SpinRow({
-                title: `${title} Size`,
-                icon_name: icon,
-                adjustment: new Gtk.Adjustment({ lower: sizeMin, upper: sizeMax, step_increment: 1 })
+            const sizeRow = new Adw.ActionRow({ title: `${title} Size`, icon_name: icon });
+            const sizeSpin = new Gtk.SpinButton({ 
+                adjustment: new Gtk.Adjustment({ lower: sizeMin, upper: sizeMax, step_increment: 1 }), 
+                valign: Gtk.Align.CENTER 
             });
-            settings.bind(sizeKey, sizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+            settings.bind(sizeKey, sizeSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+            sizeRow.add_suffix(sizeSpin);
             sizeRow.add_suffix(createResetBtn(sizeKey));
             expander.add_row(sizeRow);
 
@@ -376,12 +427,13 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
             colorRow.add_suffix(this._colorBtn(settings, colorKey, defaultColor));
             expander.add_row(colorRow);
 
-            const sizeRow = new Adw.SpinRow({
-                title: `${title} Size`,
-                icon_name: 'format-text-size-symbolic',
-                adjustment: new Gtk.Adjustment({ lower: sizeMin, upper: sizeMax, step_increment: 1 })
+            const sizeRow = new Adw.ActionRow({ title: `${title} Size`, icon_name: 'format-text-size-symbolic' });
+            const sizeSpin = new Gtk.SpinButton({ 
+                adjustment: new Gtk.Adjustment({ lower: sizeMin, upper: sizeMax, step_increment: 1 }), 
+                valign: Gtk.Align.CENTER 
             });
-            settings.bind(sizeKey, sizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+            settings.bind(sizeKey, sizeSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+            sizeRow.add_suffix(sizeSpin);
             sizeRow.add_suffix(createResetBtn(sizeKey));
             expander.add_row(sizeRow);
         };
@@ -390,12 +442,13 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         addLyricRow('Neighbor Line', 'lyrics-neighbor-color', 'lyrics-neighbor-size', 'rgba(255,255,255,0.6)', 8, 30);
         addLyricRow('Inactive Line', 'lyrics-inactive-color', 'lyrics-inactive-size', 'rgba(255,255,255,0.25)', 8, 30);
 
-        const spacingRow = new Adw.SpinRow({
-            title: 'Line Spacing',
-            icon_name: 'format-line-spacing-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 0, upper: 50, step_increment: 1 })
+        const spacingRow = new Adw.ActionRow({ title: 'Line Spacing', icon_name: 'format-line-spacing-symbolic' });
+        const spacingSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 0, upper: 50, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('lyrics-line-spacing', spacingRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('lyrics-line-spacing', spacingSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        spacingRow.add_suffix(spacingSpin);
         spacingRow.add_suffix(createResetBtn('lyrics-line-spacing'));
         expander.add_row(spacingRow);
     }
@@ -426,29 +479,33 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         styleRow.selected = Math.max(0, styleValues.indexOf(currentStyle));
         expander.add_row(styleRow);
 
-        const speedRow = new Adw.SpinRow({
-            title: 'Wave Speed',
-            icon_name: 'media-playback-start-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 0.01, upper: 0.2, step_increment: 0.01 }),
-            digits: 2
+        const speedRow = new Adw.ActionRow({ title: 'Wave Speed', icon_name: 'media-playback-start-symbolic' });
+        const speedSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 0.01, upper: 0.2, step_increment: 0.01 }), 
+            valign: Gtk.Align.CENTER, digits: 2 
         });
-        settings.bind('wave-speed', speedRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('wave-speed', speedSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        speedRow.add_suffix(speedSpin);
         speedRow.add_suffix(createResetBtn('wave-speed'));
         expander.add_row(speedRow);
 
-        const updateSpeedVisibility = () => { speedRow.visible = (styleValues[styleRow.selected] === 'wavy'); };
+        const updateSpeedVisibility = () => { 
+            speedRow.visible = (styleValues[styleRow.selected] === 'wavy'); 
+        };
+        
         styleRow.connect('notify::selected', () => {
             settings.set_string('slider-style', styleValues[styleRow.selected]);
             updateSpeedVisibility();
         });
         updateSpeedVisibility();
 
-        const thickRow = new Adw.SpinRow({
-            title: 'Line Thickness',
-            icon_name: 'format-stroke-width-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 1, upper: 10, step_increment: 1 })
+        const thickRow = new Adw.ActionRow({ title: 'Line Thickness', icon_name: 'format-stroke-width-symbolic' });
+        const thickSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 1, upper: 10, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('slider-thickness', thickRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('slider-thickness', thickSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        thickRow.add_suffix(thickSpin);
         thickRow.add_suffix(createResetBtn('slider-thickness'));
         expander.add_row(thickRow);
 
@@ -462,21 +519,23 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         thumbRow.selected = Math.max(0, thumbValues.indexOf(currentThumb));
         expander.add_row(thumbRow);
 
-        const thumbSizeRow = new Adw.SpinRow({
-            title: 'Thumb Size',
-            icon_name: 'object-resize-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 4, upper: 30, step_increment: 1 })
+        const thumbSizeRow = new Adw.ActionRow({ title: 'Thumb Size', icon_name: 'object-resize-symbolic' });
+        const thumbSizeSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 4, upper: 30, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('thumb-size', thumbSizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('thumb-size', thumbSizeSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        thumbSizeRow.add_suffix(thumbSizeSpin);
         thumbSizeRow.add_suffix(createResetBtn('thumb-size'));
         expander.add_row(thumbSizeRow);
 
-        const thumbThickRow = new Adw.SpinRow({
-            title: 'Vertical Thickness',
-            icon_name: 'format-stroke-width-symbolic',
-            adjustment: new Gtk.Adjustment({ lower: 2, upper: 15, step_increment: 1 })
+        const thumbThickRow = new Adw.ActionRow({ title: 'Vertical Thickness', icon_name: 'format-stroke-width-symbolic' });
+        const thumbThickSpin = new Gtk.SpinButton({ 
+            adjustment: new Gtk.Adjustment({ lower: 2, upper: 15, step_increment: 1 }), 
+            valign: Gtk.Align.CENTER 
         });
-        settings.bind('thumb-vertical-thickness', thumbThickRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        settings.bind('thumb-vertical-thickness', thumbThickSpin, 'value', Gio.SettingsBindFlags.DEFAULT);
+        thumbThickRow.add_suffix(thumbThickSpin);
         thumbThickRow.add_suffix(createResetBtn('thumb-vertical-thickness'));
         expander.add_row(thumbThickRow);
 
@@ -490,6 +549,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
                 thumbThickRow.visible = true;
             }
         };
+        
         thumbRow.connect('notify::selected', () => {
             settings.set_string('thumb-style', thumbValues[thumbRow.selected]);
             updateThumbUI();
@@ -542,12 +602,17 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
             ];
 
             for (let d of dirs) {
-                const row = new Adw.SpinRow({
-                    title: `${d.label} Spacing`,
-                    icon_name: d.icon,
-                    adjustment: new Gtk.Adjustment({ lower: 0, upper: 150, step_increment: 1 })
+                const row = new Adw.ActionRow({ title: `${d.label} Spacing`, icon_name: d.icon });
+                const spin = new Gtk.SpinButton({ 
+                    adjustment: new Gtk.Adjustment({ lower: 0, upper: 150, step_increment: 1 }), 
+                    valign: Gtk.Align.CENTER 
                 });
-                try { settings.bind(`${prefix}-${d.suffix}`, row, 'value', Gio.SettingsBindFlags.DEFAULT); } catch (e) { }
+                
+                try { 
+                    settings.bind(`${prefix}-${d.suffix}`, spin, 'value', Gio.SettingsBindFlags.DEFAULT); 
+                } catch (e) { }
+                
+                row.add_suffix(spin);
                 row.add_suffix(createResetBtn(`${prefix}-${d.suffix}`));
                 expander.add_row(row);
             }
@@ -625,11 +690,14 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
                 valign: Gtk.Align.CENTER,
                 css_classes: ['dim-label'],
             }));
+            
             row.connect('activated', () => {
                 try {
                     Gio.AppInfo.launch_default_for_uri(url, window.get_display().get_app_launch_context());
                 } catch (e) {
-                    try { imports.gi.GLib.spawn_command_line_async(`xdg-open ${url}`); } catch (_) { }
+                    try { 
+                        imports.gi.GLib.spawn_command_line_async(`xdg-open ${url}`); 
+                    } catch (_) { }
                 }
             });
             group.add(row);
@@ -696,17 +764,21 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
             icon_name: 'emoji-food-symbolic',
             activatable: true,
         });
+        
         coffeeRow.add_suffix(new Gtk.Image({
             icon_name: 'adw-external-link-symbolic',
             valign: Gtk.Align.CENTER,
             css_classes: ['dim-label'],
         }));
+        
         coffeeRow.connect('activated', () => {
             try {
                 Gio.AppInfo.launch_default_for_uri('https://buymeacoffee.com/narkagni',
                     window.get_display().get_app_launch_context());
             } catch (e) {
-                try { imports.gi.GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni'); } catch (_) { }
+                try { 
+                    imports.gi.GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni'); 
+                } catch (_) { }
             }
         });
         group.add(coffeeRow);
@@ -728,7 +800,9 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
             copyBtn.connect('clicked', () => {
                 const provider = Gdk.ContentProvider.new_for_value(address);
                 window.get_display().get_clipboard().set_content(provider);
-                try { window.add_toast(new Adw.Toast({ title: `${coin} address copied!`, timeout: 2 })); } catch (_) { }
+                try { 
+                    window.add_toast(new Adw.Toast({ title: `${coin} address copied!`, timeout: 2 })); 
+                } catch (_) { }
             });
 
             row.add_suffix(copyBtn);
@@ -744,15 +818,26 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         const dialog = new Gtk.ColorDialog();
         const btn = new Gtk.ColorDialogButton({ dialog, valign: Gtk.Align.CENTER });
         const rgba = new Gdk.RGBA();
+        
         let saved = defaultHex;
-        try { saved = settings.get_string(key); } catch (e) { }
-        if (!saved || !rgba.parse(saved)) rgba.parse(defaultHex);
+        try { 
+            saved = settings.get_string(key); 
+        } catch (e) { }
+        
+        if (!saved || !rgba.parse(saved)) {
+            rgba.parse(defaultHex);
+        }
+        
         btn.set_rgba(rgba);
         btn.connect('notify::rgba', () => settings.set_string(key, btn.get_rgba().to_string()));
+        
         settings.connect(`changed::${key}`, () => {
             const newRgba = new Gdk.RGBA();
-            if (newRgba.parse(settings.get_string(key))) btn.set_rgba(newRgba);
+            if (newRgba.parse(settings.get_string(key))) {
+                btn.set_rgba(newRgba);
+            }
         });
+        
         return btn;
     }
 }

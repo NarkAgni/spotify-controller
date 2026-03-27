@@ -1,8 +1,24 @@
-import GObject from 'gi://GObject';
+/*
+* Spotify Controller GNOME Extension
+* Copyright (C) 2026 NarkAgni
+* * This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* any later version.
+* * This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+* * You should have received a copy of the GNU General Public License
+* along with this program. If not, see https://www.gnu.org/licenses/. */
+
+
 import St from 'gi://St';
-import Clutter from 'gi://Clutter';
-import Cairo from 'gi://cairo';
 import GLib from 'gi://GLib';
+import Cairo from 'gi://cairo';
+import GObject from 'gi://GObject';
+import Clutter from 'gi://Clutter';
+
 
 const formatTime = (seconds) => {
     if (typeof seconds !== 'number' || seconds < 0 || isNaN(seconds)) return '0:00';
@@ -50,8 +66,11 @@ export const MediaSlider = GObject.registerClass(
                 reactive: true,
             });
 
-            const keys = ['slider-style', 'slider-color', 'thumb-color', 'slider-track-color', 
-                          'slider-thickness', 'wave-speed', 'thumb-style', 'thumb-size', 'thumb-vertical-thickness'];
+            const keys = [
+                'slider-style', 'slider-color', 'thumb-color', 'slider-track-color', 
+                'slider-thickness', 'wave-speed', 'thumb-style', 'thumb-size', 
+                'thumb-vertical-thickness'
+            ];
             
             if (this._settings) {
                 keys.forEach(key => {
@@ -91,10 +110,14 @@ export const MediaSlider = GObject.registerClass(
 
             if (this._isPlaying && !this._isDragging) {
                 this._position += dt * this._rate;
-                if (this._position > this._duration + 2) this._position = this._duration;
+                if (this._position > this._duration + 2) {
+                    this._position = this._duration;
+                }
                 
                 let speed = 0.04;
-                try { speed = this._settings.get_double('wave-speed'); } catch(e) {}
+                try {
+                    speed = this._settings.get_double('wave-speed');
+                } catch(e) {}
                 this._phase += speed;
             }
 
@@ -120,13 +143,11 @@ export const MediaSlider = GObject.registerClass(
                 }
                 this._currentTrackId = trackId;
                 this._phase = 0;
-                if (this._elapsedLabel) this._elapsedLabel.set_text(formatTime(this._position));
+                
+                if (this._elapsedLabel) {
+                    this._elapsedLabel.set_text(formatTime(this._position));
+                }
             } 
-            else if (trackId && this._currentTrackId === trackId) {
-                // Same track: DO NOT sync position from metadata polling.
-                // MPRIS often reports a stale '0' position during playback.
-                // We rely on 'syncPosition' (Seeked signal) for jumps.
-            }
 
             if (this._isPlaying !== isPlaying) {
                 this._isPlaying = isPlaying;
@@ -147,14 +168,18 @@ export const MediaSlider = GObject.registerClass(
             const newPosSec = posMicro / 1000000;
             
             this._position = newPosSec;
-            if (this._elapsedLabel) this._elapsedLabel.set_text(formatTime(this._position));
+            if (this._elapsedLabel) {
+                this._elapsedLabel.set_text(formatTime(this._position));
+            }
             this._canvas.queue_repaint();
         }
 
         resetToZero() {
              this._position = 0;
              this._phase = 0;
-             if (this._elapsedLabel) this._elapsedLabel.set_text("0:00");
+             if (this._elapsedLabel) {
+                 this._elapsedLabel.set_text("0:00");
+             }
              this._canvas.queue_repaint();
         }
 
@@ -190,15 +215,24 @@ export const MediaSlider = GObject.registerClass(
             try {
                 const cr = this._canvas.get_context();
                 const [w, h] = this._canvas.get_surface_size();
-                if (w <= 0 || h <= 0) { cr.$dispose(); return; }
+                if (w <= 0 || h <= 0) { 
+                    cr.$dispose(); 
+                    return; 
+                }
 
                 const centerY = h / 2;
                 const drawWidth = w - SIDE_PADDING * 2;
                 const ratio = Math.min(1, Math.max(0, this._position / this._duration));
                 const currentX = SIDE_PADDING + drawWidth * ratio;
                 
-                let style = 'wavy', thickness = 4, thumbSize = 8, thumbThickness = 4, thumbStyle = 'round';
-                let sliderColorStr = '#ffffff', trackColorStr = 'rgba(255,255,255,0.3)', thumbColorStr = '#ffffff';
+                let style = 'wavy';
+                let thickness = 4;
+                let thumbSize = 8;
+                let thumbThickness = 4;
+                let thumbStyle = 'round';
+                let sliderColorStr = '#ffffff';
+                let trackColorStr = 'rgba(255,255,255,0.3)';
+                let thumbColorStr = '#ffffff';
 
                 if (this._settings) {
                     try { style = this._settings.get_string('slider-style'); } catch(e) {}
@@ -264,6 +298,7 @@ export const MediaSlider = GObject.registerClass(
                     const r = Math.min(w, h) / 2; 
                     const x = currentX - w / 2;
                     const y = centerY - h / 2;
+                    
                     cr.newSubPath();
                     cr.arc(x + w - r, y + r, r, -0.5 * Math.PI, 0);
                     cr.arc(x + w - r, y + h - r, r, 0, 0.5 * Math.PI);
@@ -275,6 +310,7 @@ export const MediaSlider = GObject.registerClass(
                     cr.arc(currentX, centerY, thumbSize, 0, Math.PI * 2);
                     cr.fill();
                 }
+                
                 cr.$dispose();
             } catch (e) { }
         }
@@ -296,18 +332,26 @@ export const MediaSlider = GObject.registerClass(
 
         _onMotion(event) {
             if (!this._isDragging) return Clutter.EVENT_PROPAGATE;
+            
             this._position = this._getPercent(event) * this._duration;
             this._canvas.queue_repaint();
-            if(this._elapsedLabel) this._elapsedLabel.set_text(formatTime(this._position));
+            
+            if (this._elapsedLabel) {
+                this._elapsedLabel.set_text(formatTime(this._position));
+            }
             return Clutter.EVENT_STOP;
         }
 
         _onRelease(event) {
             if (!this._isDragging) return Clutter.EVENT_PROPAGATE;
+            
             this._isDragging = false;
             const pct = this._getPercent(event);
             this._position = pct * this._duration;
-            if (this._onSeek) this._onSeek(pct);
+            
+            if (this._onSeek) {
+                this._onSeek(pct);
+            }
             return Clutter.EVENT_STOP;
         }
 

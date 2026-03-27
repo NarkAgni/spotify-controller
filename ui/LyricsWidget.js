@@ -1,9 +1,24 @@
-import GObject from 'gi://GObject';
+/*
+* Spotify Controller GNOME Extension
+* Copyright (C) 2026 NarkAgni
+* * This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* any later version.
+* * This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+* * You should have received a copy of the GNU General Public License
+* along with this program. If not, see https://www.gnu.org/licenses/. */
+
+
 import St from 'gi://St';
-import PangoCairo from 'gi://PangoCairo';
-import Pango from 'gi://Pango';
 import GLib from 'gi://GLib';
-import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
+import GObject from 'gi://GObject';
+import PangoCairo from 'gi://PangoCairo';
+
 
 export const LyricsWidget = GObject.registerClass({
     GTypeName: 'LyricsWidget'
@@ -20,37 +35,33 @@ export const LyricsWidget = GObject.registerClass({
             height
         });
 
-        this.set_style(`padding: 0; margin: 0;`);
-
         this._lyrics = [];
         this._lineGeometries = [];
         this._totalHeight = 0;
-
         this._activeIndex = -1;
         this._currentTime = 0;
-
         this._scrollOffset = 0;
         this._targetScrollOffset = 0;
         this._tickId = 0;
-
         this._state = 'loading';
 
         this._config = {
-            activeColor: {r:1, g:1, b:1, a:1},
-            neighborColor: {r:1, g:1, b:1, a:0.6},
-            inactiveColor: {r:1, g:1, b:1, a:0.25},
+            activeColor: { r: 1, g: 1, b: 1, a: 1 },
+            neighborColor: { r: 1, g: 1, b: 1, a: 0.6 },
+            inactiveColor: { r: 1, g: 1, b: 1, a: 0.25 },
             activeSize: 18,
             neighborSize: 12,
             inactiveSize: 11,
             spacing: 8
         };
     }
-    
+
     _parseColor(col) {
         if (!col) return { r: 1, g: 1, b: 1, a: 1 };
+        
         if (col.startsWith('#')) {
             let hex = col.substring(1);
-            if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
             if (hex.length === 6) hex += 'FF';
             const bigint = parseInt(hex, 16);
             return {
@@ -60,6 +71,7 @@ export const LyricsWidget = GObject.registerClass({
                 a: (bigint & 255) / 255
             };
         }
+        
         const match = col.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
         if (match) {
             return {
@@ -69,6 +81,7 @@ export const LyricsWidget = GObject.registerClass({
                 a: match[4] ? parseFloat(match[4]) : 1.0
             };
         }
+        
         return { r: 1, g: 1, b: 1, a: 1 };
     }
 
@@ -102,7 +115,7 @@ export const LyricsWidget = GObject.registerClass({
             this.showEmpty();
             return;
         }
-
+        
         this._state = 'lyrics';
         this._lyrics = lyrics;
         this._activeIndex = -1;
@@ -115,15 +128,15 @@ export const LyricsWidget = GObject.registerClass({
 
     updatePosition(timeInMs) {
         if (this._state !== 'lyrics') return;
-
         this._currentTime = timeInMs;
 
         let newIndex = -1;
         for (let i = 0; i < this._lyrics.length; i++) {
-            if (this._lyrics[i].time <= timeInMs)
+            if (this._lyrics[i].time <= timeInMs) {
                 newIndex = i;
-            else
+            } else {
                 break;
+            }
         }
 
         if (this._activeIndex !== newIndex) {
@@ -140,12 +153,14 @@ export const LyricsWidget = GObject.registerClass({
 
     _onTick() {
         const diff = this._targetScrollOffset - this._scrollOffset;
+        
         if (Math.abs(diff) < 0.5) {
             this._scrollOffset = this._targetScrollOffset;
             this.queue_repaint();
             this._tickId = 0;
             return GLib.SOURCE_REMOVE;
         }
+        
         this._scrollOffset += diff * 0.06;
         this.queue_repaint();
         return GLib.SOURCE_CONTINUE;
@@ -160,7 +175,7 @@ export const LyricsWidget = GObject.registerClass({
             const text = this._state === 'loading' ? 'Fetching lyrics...' : 'No Lyrics Found';
             layout.set_text(text, -1);
             layout.set_alignment(Pango.Alignment.CENTER);
-            
+
             const font = Pango.FontDescription.from_string(`Sans Bold ${this._config.activeSize}`);
             layout.set_font_description(font);
 
@@ -184,7 +199,7 @@ export const LyricsWidget = GObject.registerClass({
 
         this._lineGeometries = [];
         let cursorY = 0;
-        
+
         this._lyrics.forEach((line, index) => {
             const active = index === this._activeIndex;
             const neighbor = Math.abs(index - this._activeIndex) === 1;
@@ -194,7 +209,6 @@ export const LyricsWidget = GObject.registerClass({
             else if (neighbor) fontSize = this._config.neighborSize;
 
             const font = Pango.FontDescription.from_string(`Sans Bold ${fontSize}`);
-
             layout.set_font_description(font);
             layout.set_text(line.text, -1);
 
@@ -223,9 +237,13 @@ export const LyricsWidget = GObject.registerClass({
                 const BOTTOM_LOCK_PX = this._totalHeight - (geo.height * 2.5);
 
                 let target;
-                if (geo.y < TOP_LOCK_PX) target = 0;
-                else if (geo.y > BOTTOM_LOCK_PX) target = maxScroll;
-                else target = (geo.y + geo.height / 2) - (height / 2);
+                if (geo.y < TOP_LOCK_PX) {
+                    target = 0;
+                } else if (geo.y > BOTTOM_LOCK_PX) {
+                    target = maxScroll;
+                } else {
+                    target = (geo.y + geo.height / 2) - (height / 2);
+                }
 
                 this._targetScrollOffset = Math.min(Math.max(target, 0), maxScroll);
             }
@@ -238,17 +256,10 @@ export const LyricsWidget = GObject.registerClass({
             layout.set_font_description(geo.font);
             layout.set_text(geo.text, -1);
 
-            if (geo.active) {
-                const c = this._config.activeColor;
-                cr.setSourceRGBA(c.r, c.g, c.b, c.a);
-            } else if (geo.neighbor) {
-                const c = this._config.neighborColor;
-                cr.setSourceRGBA(c.r, c.g, c.b, c.a);
-            } else {
-                const c = this._config.inactiveColor;
-                cr.setSourceRGBA(c.r, c.g, c.b, c.a);
-            }
+            const c = geo.active ? this._config.activeColor :
+                (geo.neighbor ? this._config.neighborColor : this._config.inactiveColor);
 
+            cr.setSourceRGBA(c.r, c.g, c.b, c.a);
             cr.moveTo(PADDING_X, y);
             PangoCairo.show_layout(cr, layout);
         });

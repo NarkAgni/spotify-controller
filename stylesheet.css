@@ -1,46 +1,53 @@
-/* Popup Menu Container - NO SHADOW */
+/* ==========================================================================
+   Popup menu shell
+   ========================================================================== */
 .spotify-popup-menu {
     box-shadow: none !important;
     background-color: transparent;
+    border: none !important;
 }
 
-/* Album Art Container */
+/* ==========================================================================
+   Album art area
+   ========================================================================== */
 .album-art-item-container {
-    padding: 12px; 
+    padding: 12px;
     background-color: transparent;
 }
 
-/* 1. Song title aur cover art ke beech gap thoda kam kiya (20px -> 14px) */
 .art-content-box {
-    spacing: 14px; 
+    spacing: 14px;
 }
 
 .album-art-icon {
-    box-shadow: none; 
+    box-shadow: none;
 }
 
-/* Text Info Box */
+/* ==========================================================================
+   Track metadata labels
+   ========================================================================== */
 .text-info-box {
     spacing: 2px;
-    margin: 0px !important; 
+    margin: 0px !important;
     text-align: center;
 }
 
-/* Metadata Labels */
 .track-title-label {
-    font-weight: 800;
+    font-weight: bold;
     text-align: center;
 }
 
 .track-artist-label {
-    font-weight: 500;
+    font-weight: normal;
     opacity: 0.8;
     text-align: center;
     padding-bottom: 0px !important;
     margin-bottom: 0px !important;
 }
 
-/* Slider & Time */
+/* ==========================================================================
+   Progress slider
+   ========================================================================== */
 .slider-item {
     padding: 0px;
     padding-bottom: 0px !important;
@@ -49,85 +56,137 @@
 
 .time-label {
     font-size: 0.85em;
-    font-weight: 600;
+    font-weight: bold;
     opacity: 0.8;
 }
 
-/* Slider aur Buttons ke beech gap kam karne ke liye */
+.popup-slider-box {
+    padding: 0 4px;
+}
+
+.popup-time-box {
+    padding: 0px 5px;
+    margin-bottom: 2px;
+}
+
+.popup-time-inner-box {
+    spacing: 8px;
+}
+
+.popup-total-box {
+    margin-left: 10px;
+}
+
+/* ==========================================================================
+   Media controls row
+   ========================================================================== */
 .media-controls-item {
-    padding: 0px 4px 10px 4px; 
+    padding: 0px 4px 10px 4px;
     background-color: transparent;
 }
 
-/* 2. Buttons ko left/right se kam kiya (spacing 24px -> 16px) */
 .media-controls-box {
-    spacing: 16px; 
+    spacing: 16px;
     text-align: center;
     padding: 5px 10px;
 }
 
-/* --- PERFECT CIRCLE BUTTONS (Next/Prev/Shuffle/Repeat) --- */
+/* Standard control button (prev / next / shuffle / repeat) */
 .popup-control-btn {
     padding: 0px !important;
     margin: 0px !important;
-    
     width: 44px !important;
     height: 44px !important;
     min-width: 44px !important;
     min-height: 44px !important;
-    
-    border-radius: 22px !important; 
+    border-radius: 22px !important;
     background-color: transparent;
-    transition: all 150ms ease-in-out;
+    transition-duration: 150ms;
     border: none;
 }
 
-.popup-control-btn:hover { 
-    background-color: rgba(255, 255, 255, 0.15); 
+.popup-control-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 .popup-control-btn:active {
-    transform: scale(0.9);
+    background-color: rgba(255, 255, 255, 0.25);
 }
 
-/* --- PLAY/PAUSE BUTTON (Solid White & Black Icon) --- */
+/* Large play / pause button */
 .large-control-btn {
     width: 58px !important;
     height: 58px !important;
     min-width: 58px !important;
     min-height: 58px !important;
     border-radius: 29px !important;
-    background-color: #ffffff !important; 
+    background-color: #ffffff !important;
     border: none;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
 }
 
-.large-control-btn StIcon,
-.large-control-btn > StIcon {
+.large-control-btn StIcon {
     color: #000000 !important;
 }
 
-.large-control-btn:hover { 
+.large-control-btn:hover {
     background-color: #eeeeee !important;
-    transform: scale(1.05);
 }
 
-/* Panel Styles */
-.panel-status-menu-box { 
-    spacing: 4px; 
+/* ==========================================================================
+   Panel indicator button
+   ========================================================================== */
+.spotify-controller-panel:hover,
+.spotify-controller-panel:active,
+.spotify-controller-panel:focus,
+.spotify-controller-panel:checked {
+    background-color: transparent !important;
+    box-shadow: none !important;
 }
 
-.media-ctrl-btn { 
-    padding: 2px 4px; 
+.spotify-panel-label {
+    padding: 2px 12px;
+    border-radius: 99px;
+    transition-duration: 150ms;
+    background-color: transparent;
 }
 
-.system-status-icon { 
-    icon-size: 16px; 
+.spotify-panel-label:hover {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
-/* New CSS for Lyrics Overlay */
+.spotify-panel-label:active {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.media-ctrl-btn {
+    padding: 2px 10px;
+    border-radius: 99px;
+    transition-duration: 150ms;
+    background-color: transparent;
+}
+
+.media-ctrl-btn-inline {
+    margin: 0px;
+    padding: 0px 2px;
+}
+
+.media-ctrl-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.media-ctrl-btn:active {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.system-status-icon {
+    icon-size: 16px;
+}
+
+/* ==========================================================================
+   Lyrics overlay
+   ========================================================================== */
 .lyrics-overlay-label {
-    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black */
+    background-color: rgba(0, 0, 0, 0.60);
     border-radius: 99px;
     padding: 8px 16px;
     color: #ffffff;
@@ -135,9 +194,268 @@
     font-size: 0.9em;
 }
 
+/* ==========================================================================
+   Popup header
+   ========================================================================== */
 .popup-header-label {
-    font-weight: 800;
-    font-size: 1.2em; /* Thoda bada text */
+    font-weight: bold;
+    font-size: 1.2em;
     padding-bottom: 0px;
-    color: #ffffff; /* Ya jo color theme ho */
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   Playlist UI Components (Clean Flat/Glass Theme)
+   ========================================================================== */
+.playlist-search-entry {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin: 0px 25px 15px 25px;
+    box-shadow: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    outline: none !important;
+}
+
+.playlist-header-box {
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+}
+
+.playlist-header-title-row {
+    margin-bottom: 15px;
+}
+
+/* Small Action Buttons */
+.playlist-icon-btn {
+    padding: 6px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition-duration: 150ms;
+}
+
+.playlist-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Fixed Back Button (White Translucent) */
+.playlist-icon-btn-large {
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-right: 15px;
+    background-color: rgba(255, 255, 255, 0.15) !important; 
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition-duration: 150ms;
+}
+
+.playlist-icon-btn-large:hover {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.playlist-icon-btn-large StIcon {
+    color: #ffffff !important;
+}
+
+/* Soft Red Heart Icon Classes */
+.btn-pink-hover:hover {
+    background-color: rgba(239, 83, 80, 1.0) !important;
+}
+
+.playlist-icon-btn.liked-btn-active {
+    background-color: rgba(239, 83, 80, 0.5) !important;
+    border: 1px solid rgba(239, 83, 80, 0.5);
+}
+
+.playlist-icon-btn.liked-btn-active:hover {
+    background-color: rgba(239, 83, 80, 1.0) !important;
+}
+
+/* Texts without Shadows */
+.playlist-main-title {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 13pt;
+}
+
+.playlist-current-song-row {
+    spacing: 8px;
+}
+
+/* Mini Cover Art (Added spacing between art and name) */
+.playlist-mini-art {
+    background-color: #333333;
+    border-radius: 8px;
+    margin-right: 15px;
+}
+
+.playlist-current-song-label {
+    color: #ffffff;
+    font-size: 11pt;
+    font-weight: bold;
+    text-align: center;
+    margin-left: 5px;
+}
+
+.playlist-new-box {
+    margin-bottom: 15px;
+    spacing: 8px;
+}
+
+.playlist-new-entry {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 10px;
+    box-shadow: none !important;
+    outline: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.playlist-action-btn {
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition-duration: 150ms;
+}
+
+/* Vibrant Action Buttons */
+.btn-green { background-color: #1db954; color: #ffffff; }
+.btn-green:hover { background-color: #1ed760 !important; }
+
+.btn-green-hover:hover { background-color: #1ed760 !important; }
+.btn-red-hover:hover { background-color: #e74c3c !important; }
+.btn-orange-hover:hover { background-color: #f39c12 !important; }
+
+/* Play All & Shuffle Action Buttons */
+.btn-glass { 
+    background-color: rgba(255, 255, 255, 0.15); 
+    color: #ffffff; 
+    padding: 8px 12px;
+}
+.btn-play-all:hover { 
+    background-color: #ec3838 !important;
+}
+.btn-shuffle:hover { 
+    background-color: #791aa2 !important;
+}
+
+.playlist-list-container {
+    spacing: 4px;
+    padding-right: 12px;
+}
+
+.playlist-empty-label {
+    color: #ffffff;
+    text-align: center;
+    margin-top: 20px;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* List Items (Uniform Glassmorphism without drop shadows) */
+.playlist-item-row {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.03);
+    margin-bottom: 4px;
+    spacing: 8px;
+    transition-duration: 150ms;
+}
+
+.playlist-item-row:hover, .playlist-item-row:focus {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.playlist-item-name-btn {
+    text-align: left;
+}
+
+.playlist-item-name {
+    color: #ffffff;
+    font-size: 11pt;
+}
+
+.playlist-item-bold {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.playlist-item-sub {
+    color: #cccccc;
+    font-size: 9pt;
+}
+
+.playlist-edit-entry {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 4px 8px;
+    box-shadow: none !important;
+    border: 1px solid #f39c12;
+    outline: none !important;
+}
+
+.playlist-detail-header {
+    padding: 0 5px 10px 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+}
+
+.playlist-detail-name {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 12pt;
+}
+
+.playlist-liked-name {
+    color: #ef5350;
+}
+
+.playlist-track-count {
+    color: #e0e0e0; 
+    font-size: 9.5pt;
+    font-weight: 600;
+}
+
+.playlist-actions-row {
+    spacing: 8px;
+    margin-left: auto;
+}
+
+.playlist-add-current-row {
+    padding: 10px;
+    border-radius: 8px;
+    background-color: #1db954;
+    text-align: center;
+    margin-bottom: 10px;
+    transition-duration: 150ms;
+}
+
+.playlist-add-current-row:hover {
+    background-color: #1ed760 !important;
+}
+
+.playlist-add-current-row-label {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 11pt;
+}
+
+.playlist-add-current-row.added {
+    background-color: #127535 !important;
+}
+
+.playlist-add-current-row.error {
+    background-color: rgba(255, 0, 0, 0.1) !important;
+    border: 1px solid rgba(255, 0, 0, 0.3) !important;
+}
+
+.playlist-add-current-row-error-label {
+    color: #ff4444;
+}
+
+.playlist-icon-btn StIcon,
+.playlist-icon-btn.liked-btn-active StIcon {
+    color: rgba(255, 255, 255, 0.8) !important;
 }
