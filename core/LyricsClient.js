@@ -63,6 +63,25 @@ export class LyricsClient {
         } catch (e) { }
     }
 
+    /**
+     * Spotify titles carry suffixes lrclib's bare titles don't have, e.g.
+     * "Song (feat. X)", "Song - Remastered 2011", "Song (Live)". Strip them
+     * so both /get and /search can match.
+     */
+    _cleanTitle(title) {
+        return (title || '')
+            .replace(/\s*[-(]\s*(feat\.?|ft\.?|with)\b[^)]*\)?/gi, '')   // featured artists
+            .replace(/\s*-\s*(remaster(ed)?|live|acoustic|mono|stereo|radio edit|single version|deluxe)\b.*$/gi, '')
+            .replace(/\s*\((remaster(ed)?|live|acoustic|mono|stereo|radio edit|single version|deluxe)\b[^)]*\)/gi, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+    /** "Artist A, Artist B & C" -> "Artist A" — lrclib search matches better on the lead artist. */
+    _primaryArtist(artist) {
+        return (artist || '').split(/\s*[,&]\s*|\s+feat\.?\s+|\s+ft\.?\s+/i)[0].trim();
+    }
+
     async getLyrics(title, artist, album, duration) {
         if (!this._session) return null;
 
@@ -94,11 +113,16 @@ export class LyricsClient {
             if (msg.status_code === Soup.Status.OK) {
                 const data = JSON.parse(decode(bytes.get_data()));
                 if (data.syncedLyrics) lines = this._parseLRC(data.syncedLyrics);
-            } else {
-                lines = await this._searchLyrics(title, artist, dur);
             }
         } catch (e) {
             lines = null;
+        }
+
+        // Fall back to search whenever the exact lookup didn't yield synced lyrics
+        // (404, or a 200 record that only had plain lyrics). The exact /get is
+        // strict about title/artist/duration; search is far more forgiving.
+        if (!lines || lines.length === 0) {
+            lines = await this._searchLyrics(title, artist, dur);
         }
 
         // Cache negatives in memory only (so a later session can retry),
@@ -111,18 +135,43 @@ export class LyricsClient {
     async _searchLyrics(title, artist, duration) {
         if (!this._session) return null;
 
-        try {
-            const url   = `https://lrclib.net/api/search?q=${encodeURIComponent(title + ' ' + artist)}`;
-            const msg   = Soup.Message.new('GET', url);
-            const bytes = await this._session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, null);
-            const data  = JSON.parse(decode(bytes.get_data()));
+        const cleanTitle = this._cleanTitle(title);
+        const primary    = this._primaryArtist(artist);
 
-            const match = data.find(item => item.syncedLyrics && Math.abs(item.duration - duration) < 3);
-            return match?.syncedLyrics ? this._parseLRC(match.syncedLyrics) : null;
+        // A few progressively looser queries; first synced hit wins.
+        const queries = [
+            `${cleanTitle} ${primary}`,
+            `${cleanTitle} ${artist}`,
+            cleanTitle,
+        ];
 
-        } catch (e) {
-            return null;
+        const seen = new Set();
+        for (const q of queries) {
+            const query = q.trim();
+            if (!query || seen.has(query)) continue;
+            seen.add(query);
+
+            let data;
+            try {
+                const url   = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`;
+                const msg   = Soup.Message.new('GET', url);
+                const bytes = await this._session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, null);
+                data = JSON.parse(decode(bytes.get_data()));
+            } catch (e) {
+                continue;
+            }
+
+            if (!Array.isArray(data) || data.length === 0) continue;
+            const synced = data.filter(item => item.syncedLyrics);
+            if (synced.length === 0) continue;
+
+            // Prefer a duration-aligned result; otherwise accept the best synced hit
+            // (lrclib's relevance ordering puts the likeliest match first).
+            const match = synced.find(item => Math.abs(item.duration - duration) < 5) || synced[0];
+            return this._parseLRC(match.syncedLyrics);
         }
+
+        return null;
     }
 
     _parseLRC(lrcText) {
