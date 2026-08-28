@@ -19,6 +19,19 @@ import Pango from 'gi://Pango';
 import Clutter from 'gi://Clutter';
 
 
+/**
+ * Refreshes the pointer's hover state after a list is rebuilt underneath it,
+ * so rows show the correct :hover styling without needing a mouse move.
+ *
+ * global.sync_pointer() was removed from Shell's introspected API in GNOME 49,
+ * so on 49+ this is a no-op and Clutter re-picks on the next motion event.
+ * Kept as an optional call because this extension still supports GNOME 45-48.
+ */
+function syncPointer() {
+    global.sync_pointer?.();
+}
+
+
 export class PlaylistUI {
     constructor(playlistManager, settings, callbacks) {
         this._playlistManager = playlistManager;
@@ -258,7 +271,7 @@ export class PlaylistUI {
         }
 
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -428,7 +441,7 @@ export class PlaylistUI {
         });
         
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -566,7 +579,7 @@ export class PlaylistUI {
         }
         
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -647,7 +660,7 @@ export class PlaylistUI {
         });
         
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }

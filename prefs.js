@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
+import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -695,8 +696,8 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
                 try {
                     Gio.AppInfo.launch_default_for_uri(url, window.get_display().get_app_launch_context());
                 } catch (e) {
-                    try { 
-                        imports.gi.GLib.spawn_command_line_async(`xdg-open ${url}`); 
+                    try {
+                        GLib.spawn_command_line_async(`xdg-open ${url}`);
                     } catch (_) { }
                 }
             });
@@ -734,7 +735,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
         group.add(new Adw.ActionRow({
             title: 'Narkagni',
-            subtitle: 'Author & Maintainer',
+            subtitle: 'Author &amp; Maintainer',
             icon_name: 'avatar-default-symbolic',
         }));
 
@@ -776,8 +777,8 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
                 Gio.AppInfo.launch_default_for_uri('https://buymeacoffee.com/narkagni',
                     window.get_display().get_app_launch_context());
             } catch (e) {
-                try { 
-                    imports.gi.GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni'); 
+                try {
+                    GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni');
                 } catch (_) { }
             }
         });

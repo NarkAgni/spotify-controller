@@ -508,6 +508,18 @@ export class MediaPopup {
         }
     }
 
+    /**
+     * Toggles the playlist view. Used by the panel's configurable mouse
+     * actions ('Open Playlist'), mirroring the in-popup playlist button.
+     */
+    togglePlaylistView() {
+        if (this._popupMode === 'playlist' || this._popupMode === 'liked') {
+            this.setPopupMode('normal');
+        } else {
+            this.setPopupMode('playlist');
+        }
+    }
+
     setPopupMode(mode) {
         this._popupMode = mode;
         if (mode === 'playlist' || mode === 'liked') {

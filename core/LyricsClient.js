@@ -17,8 +17,17 @@
  */
 
 
+import Gio from 'gi://Gio';
 import Soup from 'gi://Soup';
 import GLib from 'gi://GLib';
+
+
+// This module owns its own Soup session, so it promisifies the method it needs
+// instead of relying on another module having already done it. Guarded because
+// older GJS releases (GNOME 45/46) throw when a method is promisified twice.
+try {
+    Gio._promisify(Soup.Session.prototype, 'send_and_read_async', 'send_and_read_finish');
+} catch (e) { }
 
 
 const decode = (data) => new TextDecoder().decode(data);
