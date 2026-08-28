@@ -841,7 +841,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
         group.add(new Adw.ActionRow({
             title: 'Narkagni',
-            subtitle: 'Author & Maintainer',
+            subtitle: 'Author &amp; Maintainer',
             icon_name: 'avatar-default-symbolic',
         }));
 
