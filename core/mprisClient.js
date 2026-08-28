@@ -102,7 +102,8 @@ export class MprisClient {
     }
 
     get Volume() {
-        return this._proxy?.Volume || 1.0;
+        const v = this._proxy?.Volume;
+        return (typeof v === 'number') ? v : 1.0;
     }
 
     set Volume(val) {
@@ -147,7 +148,10 @@ export class MprisClient {
 
     destroy() {
         if (this._signalId) this._proxy.disconnect(this._signalId);
-        if (this._seekedId) this._proxy.disconnect(this._seekedId);
+        // 'Seeked' was subscribed with connectSignal() (a D-Bus signal), so it must be
+        // removed with disconnectSignal(); passing its id to GObject's disconnect()
+        // leaves the subscription in place and warns "no handler with id".
+        if (this._seekedId) this._proxy.disconnectSignal(this._seekedId);
         this._proxy = null;
     }
 }
