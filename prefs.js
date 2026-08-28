@@ -103,7 +103,21 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
         this._buildPanelLayoutGroup(page, settings, createResetBtn);
         this._buildVisibilityGroup(page, settings);
+        this._buildBehaviorGroup(page, settings);
         this._buildMouseActionsGroup(page, settings);
+    }
+
+    _buildBehaviorGroup(page, settings) {
+        const group = new Adw.PreferencesGroup({ title: 'Behavior' });
+        page.add(group);
+
+        const notifyRow = new Adw.SwitchRow({
+            title: 'Track Change Notifications',
+            subtitle: 'Show a desktop notification when the song changes',
+            icon_name: 'preferences-system-notifications-symbolic'
+        });
+        settings.bind('track-notifications', notifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        group.add(notifyRow);
     }
 
     _buildPanelLayoutGroup(page, settings, createResetBtn) {

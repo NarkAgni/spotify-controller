@@ -102,7 +102,8 @@ export class MprisClient {
     }
 
     get Volume() {
-        return this._proxy?.Volume || 1.0;
+        const v = this._proxy?.Volume;
+        return (typeof v === 'number') ? v : 1.0;
     }
 
     set Volume(val) {

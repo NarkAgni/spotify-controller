@@ -101,8 +101,16 @@ export class SpotifyProxy {
     }
 
     changeVolume(delta) {
-        const current        = this.client.Volume || 1.0;
+        const current        = this.client.Volume;
         this.client.Volume   = Math.max(0.0, Math.min(1.0, current + delta));
+    }
+
+    getVolume() {
+        return this.client ? this.client.Volume : 1.0;
+    }
+
+    setVolume(val) {
+        if (this.client) this.client.Volume = Math.max(0.0, Math.min(1.0, val));
     }
 
     destroy() {

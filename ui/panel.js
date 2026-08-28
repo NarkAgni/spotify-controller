@@ -19,6 +19,7 @@ import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 
 import { MediaPopup } from './popup.js';
 import { SpotifyProxy } from '../core/spotifyProxy.js';
@@ -54,8 +55,32 @@ export const MediaIndicator = GObject.registerClass(
                     if (this.activeProxy) {
                         this.activeProxy.controls().seek(val);
                     }
-                }
+                },
+                getVolume: () => this.activeProxy ? this.activeProxy.getVolume() : 1.0,
+                setVolume: (val) => {
+                    this.activeProxy?.setVolume(val);
+                },
+                setPinned: (pinned) => this._applyPin(pinned)
             });
+
+            // "Pin" support: while pinned, suppress the auto-close that the menu
+            // manager triggers when focus moves to another window. The popup
+            // stays visible until the user unpins (or toggles it from the panel).
+            //
+            // Note: the menu manager's GrabHelper releases its modal grab BEFORE
+            // calling close(), so suppressing the close leaves the popup open but
+            // ungrabbed. We track that (_closeSuppressed) and re-arm the grab when
+            // unpinning, otherwise click-outside-to-close would stay broken.
+            this._pinned = false;
+            this._closeSuppressed = false;
+            this._origMenuClose = this.menu.close.bind(this.menu);
+            this.menu.close = (animate) => {
+                if (this._pinned) {
+                    this._closeSuppressed = true;
+                    return;
+                }
+                this._origMenuClose(animate);
+            };
 
             this._settings.connect('changed::button-spacing', () => this._applySpacing());
             this._settings.connect('changed::label-margin', () => this._applySpacing());
@@ -159,6 +184,22 @@ export const MediaIndicator = GObject.registerClass(
                 this._updateState();
                 return GLib.SOURCE_CONTINUE;
             });
+        }
+
+        _applyPin(pinned) {
+            this._pinned = pinned;
+            if (!pinned) {
+                // If the grab was dropped while pinned (the user clicked away),
+                // re-open the still-visible menu so the manager re-grabs and
+                // click-outside closes it again. Done with no animation so it
+                // isn't visible. If no close was suppressed, the grab is intact
+                // and we leave it untouched.
+                if (this._closeSuppressed && this.menu.isOpen) {
+                    this._origMenuClose(BoxPointer.PopupAnimation.NONE);
+                    this.menu.open(BoxPointer.PopupAnimation.NONE);
+                }
+                this._closeSuppressed = false;
+            }
         }
 
         _releaseFocusLock(isFromTimeout = false) {
@@ -341,6 +382,13 @@ export const MediaIndicator = GObject.registerClass(
                     if (this._previewTimeoutId) {
                         GLib.source_remove(this._previewTimeoutId);
                         this._previewTimeoutId = null;
+                    }
+                    // Clicking the panel button to close also releases the pin.
+                    // Clear _closeSuppressed first so unpin() doesn't re-grab a
+                    // menu we're about to close anyway.
+                    if (this._pinned && this.menu.isOpen) {
+                        this._closeSuppressed = false;
+                        this._popup?.unpin();
                     }
                     this.menu.toggle();
                     break;

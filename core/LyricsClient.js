@@ -36,30 +36,85 @@ export class LyricsClient {
 
     constructor() {
         this._session = new Soup.Session();
+        this._session.timeout = 8;              // fail fast instead of hanging the spinner
+
+        this._memCache = new Map();             // key -> parsed lines[] | null
+        this._cacheDir = GLib.build_filenamev([GLib.get_user_cache_dir(), 'spotify-controller-lyrics']);
+        GLib.mkdir_with_parents(this._cacheDir, 0o755);
+    }
+
+    _cacheKey(title, artist, duration) {
+        const raw = `${(title || '').toLowerCase().trim()}|${(artist || '').toLowerCase().trim()}|${duration}`;
+        return GLib.compute_checksum_for_string(GLib.ChecksumType.MD5, raw, -1);
+    }
+
+    _cachePath(key) {
+        return GLib.build_filenamev([this._cacheDir, `${key}.json`]);
+    }
+
+    /** Reads parsed lyrics from disk, or undefined if not cached. */
+    _readDiskCache(key) {
+        const path = this._cachePath(key);
+        if (!GLib.file_test(path, GLib.FileTest.EXISTS)) return undefined;
+        try {
+            const [ok, contents] = GLib.file_get_contents(path);
+            if (!ok) return undefined;
+            return JSON.parse(decode(contents));
+        } catch (e) {
+            return undefined;
+        }
+    }
+
+    /** Persists positive lyric hits so revisits are instant and offline. */
+    _writeDiskCache(key, lines) {
+        try {
+            GLib.file_set_contents(this._cachePath(key), JSON.stringify(lines));
+        } catch (e) { }
     }
 
     async getLyrics(title, artist, album, duration) {
         if (!this._session) return null;
 
+        const dur = Math.round(duration) || 0;
+        const key = this._cacheKey(title, artist, dur);
+
+        // 1. In-memory cache (covers negatives too, within this session).
+        if (this._memCache.has(key)) return this._memCache.get(key);
+
+        // 2. Disk cache (positive hits survive restarts / offline).
+        const disk = this._readDiskCache(key);
+        if (disk !== undefined) {
+            this._memCache.set(key, disk);
+            return disk;
+        }
+
+        // 3. Network.
+        let lines = null;
         try {
             const url = `https://lrclib.net/api/get`
                 + `?track_name=${encodeURIComponent(title)}`
                 + `&artist_name=${encodeURIComponent(artist)}`
-                + `&album_name=${encodeURIComponent(album)}`
-                + `&duration=${duration}`;
+                + `&album_name=${encodeURIComponent(album || '')}`
+                + `&duration=${dur}`;
 
             const msg   = Soup.Message.new('GET', url);
             const bytes = await this._session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, null);
 
-            if (msg.status_code !== Soup.Status.OK)
-                return await this._searchLyrics(title, artist, duration);
-
-            const data = JSON.parse(decode(bytes.get_data()));
-            return data.syncedLyrics ? this._parseLRC(data.syncedLyrics) : null;
-
+            if (msg.status_code === Soup.Status.OK) {
+                const data = JSON.parse(decode(bytes.get_data()));
+                if (data.syncedLyrics) lines = this._parseLRC(data.syncedLyrics);
+            } else {
+                lines = await this._searchLyrics(title, artist, dur);
+            }
         } catch (e) {
-            return null;
+            lines = null;
         }
+
+        // Cache negatives in memory only (so a later session can retry),
+        // positives to disk as well.
+        this._memCache.set(key, lines);
+        if (lines && lines.length > 0) this._writeDiskCache(key, lines);
+        return lines;
     }
 
     async _searchLyrics(title, artist, duration) {
@@ -71,7 +126,7 @@ export class LyricsClient {
             const bytes = await this._session.send_and_read_async(msg, GLib.PRIORITY_DEFAULT, null);
             const data  = JSON.parse(decode(bytes.get_data()));
 
-            const match = data.find(item => Math.abs(item.duration - duration) < 3);
+            const match = data.find(item => item.syncedLyrics && Math.abs(item.duration - duration) < 3);
             return match?.syncedLyrics ? this._parseLRC(match.syncedLyrics) : null;
 
         } catch (e) {

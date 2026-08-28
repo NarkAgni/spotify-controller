@@ -34,6 +34,11 @@
             <summary>Show artist name in the top panel</summary>
         </key>
 
+        <key name="track-notifications" type="b">
+            <default>false</default>
+            <summary>Show a desktop notification when the track changes</summary>
+        </key>
+
         <key name="button-spacing" type="i">
             <default>0</default>
         </key>
