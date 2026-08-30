@@ -19,13 +19,43 @@ import Pango from 'gi://Pango';
 import Clutter from 'gi://Clutter';
 
 
+/**
+ * Refreshes the pointer's hover state after a list is rebuilt underneath it,
+ * so rows show the correct :hover styling without needing a mouse move.
+ *
+ * global.sync_pointer() was removed from Shell's introspected API in GNOME 49,
+ * so on 49+ this is a no-op and Clutter re-picks on the next motion event.
+ * Kept as an optional call because this extension still supports GNOME 45-48.
+ */
+function syncPointer() {
+    global.sync_pointer?.();
+}
+
+
 export class PlaylistUI {
     constructor(playlistManager, settings, callbacks) {
         this._playlistManager = playlistManager;
         this._settings = settings;
         this._callbacks = callbacks;
-        this._currentDetailPlaylist = null;
+        this._currentDetailId = null;
+        this._currentPage = 'main';
         this._buildUI();
+        this._playlistManager.setOnChange(() => this._onDataChanged());
+    }
+
+    /** Re-render whichever page is currently visible (called on cache changes). */
+    _onDataChanged() {
+        if (this._currentPage === 'liked') {
+            this._renderLikedSongs(this.likedSearchEntry.get_text());
+        } else if (this._currentPage === 'detail' && this._currentDetailId) {
+            this._renderPlaylistDetail(this._currentDetailId, this.detailSearchEntry.get_text());
+        } else if (this._currentPage === 'main') {
+            this._renderPlaylists(this.playlistSearchEntry.get_text());
+        }
+    }
+
+    _isConnected() {
+        return this._playlistManager.isConnected();
     }
 
     _createSearchBox(hint, onSearch) {
@@ -35,7 +65,7 @@ export class PlaylistUI {
             x_expand: true,
             visible: false
         });
-        
+
         entry.clutter_text.connect('text-changed', () => onSearch(entry.get_text()));
         return entry;
     }
@@ -44,17 +74,17 @@ export class PlaylistUI {
         this.container = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true });
 
         this.playlistMainPage = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true });
-        
+
         const headerBox = new St.BoxLayout({ vertical: true, style_class: 'playlist-header-box' });
         const titleRow = new St.BoxLayout({ y_align: Clutter.ActorAlign.CENTER, style_class: 'playlist-header-title-row' });
-        
+
         this.mainPlaylistBackBtn = new St.Button({
             child: new St.Icon({ icon_name: 'go-previous-symbolic', icon_size: 16 }),
             style_class: 'playlist-icon-btn playlist-icon-btn-large',
             reactive: true,
             track_hover: true
         });
-        
+
         this.mainPlaylistBackBtn.connect('clicked', () => {
             this._callbacks.setPopupMode('normal');
         });
@@ -66,7 +96,7 @@ export class PlaylistUI {
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER
         });
-        
+
         const spacer = new St.Widget({ width: 32 });
 
         titleRow.add_child(this.mainPlaylistBackBtn);
@@ -79,13 +109,13 @@ export class PlaylistUI {
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'playlist-current-song-row'
         });
-        
+
         this.playlistMiniArt = new St.Bin({
             style_class: 'playlist-mini-art',
             width: 60, height: 60,
             x_align: Clutter.ActorAlign.CENTER
         });
-        
+
         this.playlistCurrentSongLabel = new St.Label({
             text: "Current Song",
             style_class: 'playlist-current-song-label',
@@ -101,13 +131,13 @@ export class PlaylistUI {
         this.playlistMainPage.add_child(headerBox);
 
         const newBox = new St.BoxLayout({ style_class: 'playlist-new-box', x_expand: true });
-        
+
         this.newPlaylistEntry = new St.Entry({
             hint_text: 'New Playlist Name...',
             style_class: 'playlist-new-entry',
             x_expand: true
         });
-        
+
         const createBtn = new St.Button({
             child: new St.Icon({ icon_name: 'list-add-symbolic', icon_size: 16 }),
             style_class: 'playlist-action-btn btn-green',
@@ -120,10 +150,9 @@ export class PlaylistUI {
             if (name && name.trim() !== '') {
                 this._playlistManager.createPlaylist(name.trim());
                 this.newPlaylistEntry.set_text('');
-                this._renderPlaylists(this.playlistSearchEntry.get_text());
             }
         });
-        
+
         newBox.add_child(this.newPlaylistEntry);
         newBox.add_child(createBtn);
         this.playlistMainPage.add_child(newBox);
@@ -163,7 +192,7 @@ export class PlaylistUI {
         this.detailAddBox = new St.BoxLayout({ vertical: true, x_expand: true, style: 'padding-right: 12px;' });
         this.playlistDetailPage.add_child(this.detailAddBox);
 
-        this.detailSearchEntry = this._createSearchBox('Search Songs...', (text) => this._renderPlaylistDetail(this._currentDetailPlaylist, text));
+        this.detailSearchEntry = this._createSearchBox('Search Songs...', (text) => this._renderPlaylistDetail(this._currentDetailId, text));
         this.playlistDetailPage.add_child(this.detailSearchEntry);
 
         this.detailScrollView = new St.ScrollView({ hscrollbar_policy: St.PolicyType.NEVER, vscrollbar_policy: St.PolicyType.AUTOMATIC, x_expand: true, y_expand: true });
@@ -173,7 +202,7 @@ export class PlaylistUI {
 
 
         this.likedSongsPage = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true, visible: false });
-        
+
         const likedHeader = new St.BoxLayout({ style_class: 'playlist-detail-header', y_align: Clutter.ActorAlign.CENTER });
         this.likedBackBtn = new St.Button({
             child: new St.Icon({ icon_name: 'go-previous-symbolic', icon_size: 16 }),
@@ -191,14 +220,14 @@ export class PlaylistUI {
         likedTitleBox.add_child(this.likedTrackCountLabel);
 
         const likedActionsRow = new St.BoxLayout({ style_class: 'playlist-actions-row', y_align: Clutter.ActorAlign.CENTER });
-        
+
         this.likedPlayAllBtn = new St.Button({
             child: new St.Icon({ icon_name: 'media-playback-start-symbolic', icon_size: 14 }),
             style_class: 'playlist-action-btn btn-glass btn-play-all',
             reactive: true, track_hover: true
         });
         this.likedPlayAllBtn.connect('clicked', () => {
-            this._callbacks.playQueue(this._playlistManager.getLikedSongs(), false);
+            this._callbacks.playQueue(this._playlistManager.getLiked(), false);
             this._callbacks.setPopupMode('normal');
         });
 
@@ -208,7 +237,7 @@ export class PlaylistUI {
             reactive: true, track_hover: true
         });
         this.likedShuffleBtn.connect('clicked', () => {
-            this._callbacks.playQueue(this._playlistManager.getLikedSongs(), true);
+            this._callbacks.playQueue(this._playlistManager.getLiked(), true);
             this._callbacks.setPopupMode('normal');
         });
 
@@ -238,27 +267,33 @@ export class PlaylistUI {
         this.likedSongsPage.hide();
 
         if (forceMain) {
-            this._currentDetailPlaylist = null;
+            this._currentDetailId = null;
             this.playlistSearchEntry.set_text('');
         }
 
         if (mode === 'liked') {
+            this._currentPage = 'liked';
             this.likedSearchEntry.set_text('');
             this.likedSongsPage.show();
+            this._playlistManager.loadLiked();
             this._renderLikedSongs();
         } else if (mode === 'playlist') {
-            if (this._currentDetailPlaylist) {
+            if (this._currentDetailId) {
+                this._currentPage = 'detail';
                 this.detailSearchEntry.set_text('');
                 this.playlistDetailPage.show();
-                this._renderPlaylistDetail(this._currentDetailPlaylist);
+                this._playlistManager.loadTracks(this._currentDetailId);
+                this._renderPlaylistDetail(this._currentDetailId);
             } else {
+                this._currentPage = 'main';
                 this.playlistMainPage.show();
+                this._playlistManager.loadPlaylists();
                 this._renderPlaylists();
             }
         }
 
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -281,11 +316,24 @@ export class PlaylistUI {
         }
     }
 
+    _emptyLabel(text, style) {
+        return new St.Label({ text, style_class: 'playlist-empty-label', style: style || '' });
+    }
+
     _renderPlaylists(query = '') {
         this.mainListContainer.destroy_all_children();
-        const allNames = this._playlistManager.getPlaylistNames();
-        
-        if (allNames.length > 5) {
+
+        if (!this._isConnected()) {
+            this.playlistSearchEntry.hide();
+            this.mainListContainer.add_child(this._emptyLabel(
+                "Not connected to Spotify.\nOpen Preferences → Spotify Account to connect.",
+                'margin-top: 20px;'));
+            return;
+        }
+
+        const allPlaylists = this._playlistManager.getPlaylists();
+
+        if (allPlaylists.length > 5) {
             this.playlistSearchEntry.show();
         } else {
             this.playlistSearchEntry.hide();
@@ -293,7 +341,7 @@ export class PlaylistUI {
 
         const info = this._callbacks.getLastTrackInfo();
         const songName = info ? `${info.title} — ${info.artist}` : "Unknown Song";
-        
+
         if (songName.length > 35) {
             this.playlistCurrentSongLabel.set_text(songName.substring(0, 32) + "...");
         } else {
@@ -308,34 +356,35 @@ export class PlaylistUI {
                 child: new St.Label({ text: "♥ Liked Songs", style_class: 'playlist-item-name playlist-liked-name playlist-item-bold', y_align: Clutter.ActorAlign.CENTER }),
                 x_expand: true, reactive: true, track_hover: true, style_class: 'playlist-item-name-btn'
             });
-            
+
             likedBtn.connect('clicked', () => {
                 this._callbacks.setPopupMode('liked');
             });
-            
+
             likedRow.add_child(likedBtn);
             this.mainListContainer.add_child(likedRow);
         }
 
-        const filteredNames = allNames.filter(n => n.toLowerCase().includes(lowerQuery));
-
-        if (allNames.length === 0) {
-            this.mainListContainer.add_child(new St.Label({
-                text: "No custom playlists yet. Create one above.",
-                style_class: 'playlist-empty-label'
-            }));
+        if (allPlaylists.length === 0) {
+            this.mainListContainer.add_child(this._emptyLabel(
+                "Loading your playlists…", 'margin-top: 10px;'));
             return;
         }
 
-        filteredNames.forEach(name => {
+        const filtered = allPlaylists.filter(p => p.name.toLowerCase().includes(lowerQuery));
+
+        filtered.forEach(playlist => {
+            const name = playlist.name;
+            const id = playlist.id;
+
             const row = new St.BoxLayout({ style_class: 'playlist-item-row', x_expand: true, reactive: true, track_hover: true });
             const nameBtn = new St.Button({
                 child: new St.Label({ text: name, style_class: 'playlist-item-name', y_align: Clutter.ActorAlign.CENTER }),
                 x_expand: true, reactive: true, track_hover: true, style_class: 'playlist-item-name-btn'
             });
-            
+
             nameBtn.connect('clicked', () => {
-                this._currentDetailPlaylist = name;
+                this._currentDetailId = id;
                 this.setMode('playlist');
             });
             row.add_child(nameBtn);
@@ -345,26 +394,23 @@ export class PlaylistUI {
                 style_class: 'playlist-icon-btn btn-orange-hover',
                 y_align: Clutter.ActorAlign.CENTER, reactive: true, track_hover: true
             });
-            
+
             let editEntry = null;
-            
+
             const saveRename = () => {
                 if (!editEntry) return;
                 const newName = editEntry.get_text().trim();
                 if (newName && newName !== name) {
-                    if (this._playlistManager.renamePlaylist(name, newName)) {
-                        if (this._currentDetailPlaylist === name) {
-                            this._currentDetailPlaylist = newName;
-                        }
-                    }
+                    this._playlistManager.renamePlaylist(id, newName);
+                } else {
+                    this._renderPlaylists(this.playlistSearchEntry.get_text());
                 }
-                this._renderPlaylists(this.playlistSearchEntry.get_text());
             };
 
             renameBtn.connect('clicked', () => {
                 if (!editEntry) {
                     renameBtn.child.icon_name = 'object-select-symbolic';
-                    renameBtn.add_style_class_name('btn-orange-hover'); 
+                    renameBtn.add_style_class_name('btn-orange-hover');
                     nameBtn.hide();
 
                     editEntry = new St.Entry({
@@ -382,7 +428,7 @@ export class PlaylistUI {
                         }
                         return GLib.SOURCE_REMOVE;
                     });
-                    
+
                     editEntry.clutter_text.connect('activate', () => saveRename());
                 } else {
                     saveRename();
@@ -395,20 +441,22 @@ export class PlaylistUI {
                 style_class: 'playlist-icon-btn btn-green-hover',
                 y_align: Clutter.ActorAlign.CENTER, reactive: true, track_hover: true
             });
-            
+
             quickAddBtn.connect('clicked', () => {
-                const info = this._callbacks.getLastTrackInfo();
-                if (!info) return;
-                
-                if (this._playlistManager.addTrack(name, info)) {
-                    quickAddBtn.child.icon_name = 'object-select-symbolic';
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-                        if (quickAddBtn && quickAddBtn.child) {
-                            quickAddBtn.child.icon_name = 'list-add-symbolic';
-                        }
-                        return GLib.SOURCE_REMOVE;
-                    });
-                }
+                const cur = this._callbacks.getLastTrackInfo();
+                if (!cur) return;
+
+                this._playlistManager.addCurrentToPlaylist(id, cur).then(status => {
+                    if (status === 'added' && quickAddBtn.child) {
+                        quickAddBtn.child.icon_name = 'object-select-symbolic';
+                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                            if (quickAddBtn && quickAddBtn.child) {
+                                quickAddBtn.child.icon_name = 'list-add-symbolic';
+                            }
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    }
+                });
             });
             row.add_child(quickAddBtn);
 
@@ -417,54 +465,43 @@ export class PlaylistUI {
                 style_class: 'playlist-icon-btn btn-red-hover',
                 y_align: Clutter.ActorAlign.CENTER, reactive: true, track_hover: true
             });
-            
+
             delBtn.connect('clicked', () => {
-                this._playlistManager.deletePlaylist(name);
-                this._renderPlaylists(this.playlistSearchEntry.get_text());
+                this._playlistManager.deletePlaylist(id);
             });
             row.add_child(delBtn);
 
             this.mainListContainer.add_child(row);
         });
-        
+
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    _renderPlaylistDetail(playlistName, query = '') {
+    _renderPlaylistDetail(playlistId, query = '') {
+        const playlist = this._playlistManager.getPlaylistById(playlistId);
+        const playlistName = playlist ? playlist.name : 'Tracks';
         this.playlistDetailNameLabel.set_text(playlistName);
         this.detailListContainer.destroy_all_children();
-        
-        const allTracks = this._playlistManager.getTracks(playlistName);
 
-        if (allTracks.length > 5) {
-            this.detailSearchEntry.show();
-        } else {
-            this.detailSearchEntry.hide();
-        }
-
-        let totalSeconds = 0;
-        allTracks.forEach(t => {
-            totalSeconds += (t.duration || 0);
-        });
-        
-        let h = Math.floor(totalSeconds / 3600);
-        let m = Math.floor((totalSeconds % 3600) / 60);
-        this.playlistTrackCountLabel.set_text(`${allTracks.length} tracks • ${h > 0 ? `${h}h ${m}m` : `${m} min`}`);
+        const allTracks = this._playlistManager.getTracks(playlistId);
 
         if (!this._detailActionsRow) {
             this._detailActionsRow = new St.BoxLayout({ style_class: 'playlist-actions-row', y_align: Clutter.ActorAlign.CENTER });
-            
+
             const detailPlayAll = new St.Button({
                 child: new St.Icon({ icon_name: 'media-playback-start-symbolic', icon_size: 14 }),
                 style_class: 'playlist-action-btn btn-glass btn-play-all',
                 reactive: true, track_hover: true
             });
             detailPlayAll.connect('clicked', () => {
-                this._callbacks.playQueue(this._playlistManager.getTracks(this._currentDetailPlaylist), false);
-                this._callbacks.setPopupMode('normal');
+                const tracks = this._playlistManager.getTracks(this._currentDetailId);
+                if (tracks && tracks.length) {
+                    this._callbacks.playQueue(tracks, false);
+                    this._callbacks.setPopupMode('normal');
+                }
             });
 
             const detailShuffle = new St.Button({
@@ -473,68 +510,86 @@ export class PlaylistUI {
                 reactive: true, track_hover: true
             });
             detailShuffle.connect('clicked', () => {
-                this._callbacks.playQueue(this._playlistManager.getTracks(this._currentDetailPlaylist), true);
-                this._callbacks.setPopupMode('normal');
+                const tracks = this._playlistManager.getTracks(this._currentDetailId);
+                if (tracks && tracks.length) {
+                    this._callbacks.playQueue(tracks, true);
+                    this._callbacks.setPopupMode('normal');
+                }
             });
 
             this._detailActionsRow.add_child(detailPlayAll);
             this._detailActionsRow.add_child(detailShuffle);
-            
+
             const detailHeader = this.playlistDetailPage.get_first_child();
             if (detailHeader) detailHeader.add_child(this._detailActionsRow);
         }
 
+        // Tracks not loaded yet.
+        if (allTracks === null) {
+            this.detailSearchEntry.hide();
+            this.playlistTrackCountLabel.set_text('Loading…');
+            this.detailAddBox.destroy_all_children();
+            this.detailListContainer.add_child(this._emptyLabel("Loading tracks…", 'margin-top: 10px;'));
+            return;
+        }
+
+        if (allTracks.length > 5) {
+            this.detailSearchEntry.show();
+        } else {
+            this.detailSearchEntry.hide();
+        }
+
+        let totalSeconds = 0;
+        allTracks.forEach(t => { totalSeconds += (t.duration || 0); });
+
+        let h = Math.floor(totalSeconds / 3600);
+        let m = Math.floor((totalSeconds % 3600) / 60);
+        this.playlistTrackCountLabel.set_text(`${allTracks.length} tracks • ${h > 0 ? `${h}h ${m}m` : `${m} min`}`);
+
         this.detailAddBox.destroy_all_children();
-        
+
         const addRow = new St.Button({
             style_class: 'playlist-add-current-row',
             x_expand: true, reactive: true, track_hover: true
         });
-        
+
         addRow.set_child(new St.Label({
             text: "+ Add Current Song Here",
             style_class: 'playlist-add-current-row-label'
         }));
-        
+
         addRow.connect('clicked', () => {
             const info = this._callbacks.getLastTrackInfo();
             if (!info) return;
-            
-            if (this._playlistManager.addTrack(playlistName, info)) {
-                addRow.set_child(new St.Label({ text: "Added! ✓", style_class: 'playlist-add-current-row-label' }));
-                addRow.add_style_class_name('added');
-                
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-                    this._renderPlaylistDetail(playlistName, this.detailSearchEntry.get_text());
-                    return GLib.SOURCE_REMOVE;
-                });
-            } else {
-                addRow.set_child(new St.Label({ text: "Already in Playlist!", style_class: 'playlist-add-current-row-error-label' }));
-                addRow.add_style_class_name('error');
-            }
+
+            this._playlistManager.addCurrentToPlaylist(playlistId, info).then(status => {
+                if (status === 'added') {
+                    addRow.set_child(new St.Label({ text: "Added! ✓", style_class: 'playlist-add-current-row-label' }));
+                    addRow.add_style_class_name('added');
+                } else if (status === 'duplicate') {
+                    addRow.set_child(new St.Label({ text: "Already in Playlist!", style_class: 'playlist-add-current-row-error-label' }));
+                    addRow.add_style_class_name('error');
+                } else {
+                    addRow.set_child(new St.Label({ text: "Couldn't add song.", style_class: 'playlist-add-current-row-error-label' }));
+                    addRow.add_style_class_name('error');
+                }
+            });
         });
-        
+
         this.detailAddBox.add_child(addRow);
 
         const lowerQuery = query.toLowerCase();
         const filteredTracks = allTracks.filter(t => t.title.toLowerCase().includes(lowerQuery) || t.artist.toLowerCase().includes(lowerQuery));
 
         if (allTracks.length === 0) {
-            this.detailListContainer.add_child(new St.Label({
-                text: "Nothing here yet.",
-                style_class: 'playlist-empty-label'
-            }));
+            this.detailListContainer.add_child(this._emptyLabel("Nothing here yet."));
         } else if (filteredTracks.length === 0) {
-            this.detailListContainer.add_child(new St.Label({
-                text: "No songs match your search.",
-                style_class: 'playlist-empty-label',
-                style: 'margin-top: 10px;'
-            }));
+            this.detailListContainer.add_child(this._emptyLabel("No songs match your search.", 'margin-top: 10px;'));
         } else {
             filteredTracks.forEach(track => {
                 const row = new St.BoxLayout({ style_class: 'playlist-item-row', x_expand: true, reactive: true, track_hover: true });
                 const textLayout = new St.BoxLayout({ vertical: true, x_expand: true });
-                
+
                 textLayout.add_child(new St.Label({ text: track.title, style_class: 'playlist-item-name playlist-item-bold' }));
                 textLayout.add_child(new St.Label({ text: track.artist, style_class: 'playlist-item-sub' }));
 
@@ -543,7 +598,7 @@ export class PlaylistUI {
                     x_expand: true, reactive: true, track_hover: true,
                     style_class: 'playlist-item-name-btn'
                 });
-                
+
                 trackPlayBtn.connect('clicked', () => {
                     this._callbacks.openUri(track.spotifyUri);
                     this._callbacks.setPopupMode('normal');
@@ -555,8 +610,7 @@ export class PlaylistUI {
                     y_align: Clutter.ActorAlign.CENTER, reactive: true, track_hover: true
                 });
                 delSongBtn.connect('clicked', () => {
-                    this._playlistManager.removeTrack(playlistName, track.id);
-                    this._renderPlaylistDetail(playlistName, this.detailSearchEntry.get_text());
+                    this._playlistManager.removeTrack(playlistId, track);
                 });
 
                 row.add_child(trackPlayBtn);
@@ -564,16 +618,25 @@ export class PlaylistUI {
                 this.detailListContainer.add_child(row);
             });
         }
-        
+
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }
 
     _renderLikedSongs(query = '') {
         this.likedListContainer.destroy_all_children();
-        const allTracks = this._playlistManager.getLikedSongs();
+
+        if (!this._isConnected()) {
+            this.likedSearchEntry.hide();
+            this.likedTrackCountLabel.set_text('');
+            this.likedListContainer.add_child(this._emptyLabel(
+                "Not connected to Spotify.", 'margin-top: 30px;'));
+            return;
+        }
+
+        const allTracks = this._playlistManager.getLiked();
 
         if (allTracks.length > 5) {
             this.likedSearchEntry.show();
@@ -581,11 +644,15 @@ export class PlaylistUI {
             this.likedSearchEntry.hide();
         }
 
+        if (!this._playlistManager.likedLoaded() && allTracks.length === 0) {
+            this.likedTrackCountLabel.set_text('Loading…');
+            this.likedListContainer.add_child(this._emptyLabel("Loading your Liked Songs…", 'margin-top: 30px;'));
+            return;
+        }
+
         let totalSeconds = 0;
-        allTracks.forEach(t => {
-            totalSeconds += (t.duration || 0);
-        });
-        
+        allTracks.forEach(t => { totalSeconds += (t.duration || 0); });
+
         let h = Math.floor(totalSeconds / 3600);
         let m = Math.floor((totalSeconds % 3600) / 60);
         this.likedTrackCountLabel.set_text(`${allTracks.length} songs • ${h > 0 ? `${h}h ${m}m` : `${m} min`}`);
@@ -594,24 +661,17 @@ export class PlaylistUI {
         const filteredTracks = allTracks.filter(t => t.title.toLowerCase().includes(lowerQuery) || t.artist.toLowerCase().includes(lowerQuery));
 
         if (allTracks.length === 0) {
-            this.likedListContainer.add_child(new St.Label({
-                text: "No liked songs yet.\nHeart a song from the player!",
-                style_class: 'playlist-empty-label',
-                style: 'margin-top: 30px;'
-            }));
+            this.likedListContainer.add_child(this._emptyLabel(
+                "No liked songs yet.\nHeart a song from the player!", 'margin-top: 30px;'));
             return;
         } else if (filteredTracks.length === 0) {
-            this.likedListContainer.add_child(new St.Label({
-                text: "No songs match your search.",
-                style_class: 'playlist-empty-label',
-                style: 'margin-top: 10px;'
-            }));
+            this.likedListContainer.add_child(this._emptyLabel("No songs match your search.", 'margin-top: 10px;'));
         }
 
         filteredTracks.forEach(track => {
             const row = new St.BoxLayout({ style_class: 'playlist-item-row', x_expand: true, reactive: true, track_hover: true });
             const textLayout = new St.BoxLayout({ vertical: true, x_expand: true });
-            
+
             textLayout.add_child(new St.Label({ text: track.title, style_class: 'playlist-item-name playlist-item-bold' }));
             textLayout.add_child(new St.Label({ text: track.artist, style_class: 'playlist-item-sub' }));
 
@@ -620,7 +680,7 @@ export class PlaylistUI {
                 x_expand: true, reactive: true, track_hover: true,
                 style_class: 'playlist-item-name-btn'
             });
-            
+
             trackPlayBtn.connect('clicked', () => {
                 this._callbacks.openUri(track.spotifyUri);
                 this._callbacks.setPopupMode('normal');
@@ -631,12 +691,12 @@ export class PlaylistUI {
                 style_class: 'playlist-icon-btn liked-btn-active',
                 y_align: Clutter.ActorAlign.CENTER, reactive: true, track_hover: true
             });
-            
+
             unlikeBtn.connect('clicked', () => {
-                this._playlistManager.removeLiked(track.id);
-                this._renderLikedSongs(this.likedSearchEntry.get_text());
+                this._playlistManager.removeLikedById(track.id);
                 const info = this._callbacks.getLastTrackInfo();
-                if (info && (info.title + info.artist) === track.id) {
+                if (info && this._playlistManager._trackFromInfo(info) &&
+                    this._playlistManager._trackFromInfo(info).id === track.id) {
                     this._callbacks.onCurrentUnliked();
                 }
             });
@@ -645,9 +705,9 @@ export class PlaylistUI {
             row.add_child(unlikeBtn);
             this.likedListContainer.add_child(row);
         });
-        
+
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            global.sync_pointer();
+            syncPointer();
             return GLib.SOURCE_REMOVE;
         });
     }

@@ -2,8 +2,11 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
+import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { SpotifyApi } from './core/spotifyApi.js';
+import { redirectUri } from './core/spotifyAuth.js';
 
 
 export default class SpotifyControllerPrefs extends ExtensionPreferences {
@@ -101,8 +104,112 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
         window.add(page);
 
         this._buildPanelLayoutGroup(page, settings, createResetBtn);
+        this._buildSpotifyAccountGroup(page, settings);
         this._buildVisibilityGroup(page, settings);
+        this._buildBehaviorGroup(page, settings);
         this._buildMouseActionsGroup(page, settings);
+    }
+
+    _buildSpotifyAccountGroup(page, settings) {
+        const port = settings.get_int('spotify-redirect-port');
+        const uri = redirectUri(port);
+
+        const group = new Adw.PreferencesGroup({
+            title: 'Spotify Account',
+            description: 'Connect your Spotify account to use real playlists and Liked Songs. '
+                + 'Create a free app at developer.spotify.com, paste its Client ID below, and add '
+                + `the Redirect URI shown here to that app's settings.`,
+        });
+        page.add(group);
+
+        const idRow = new Adw.EntryRow({ title: 'Client ID' });
+        settings.bind('spotify-client-id', idRow, 'text', Gio.SettingsBindFlags.DEFAULT);
+        group.add(idRow);
+
+        const uriRow = new Adw.ActionRow({
+            title: 'Redirect URI',
+            subtitle: uri,
+        });
+        const copyBtn = new Gtk.Button({
+            icon_name: 'edit-copy-symbolic',
+            valign: Gtk.Align.CENTER,
+            css_classes: ['flat'],
+            tooltip_text: 'Copy to clipboard',
+        });
+        copyBtn.connect('clicked', () => {
+            try {
+                copyBtn.get_clipboard().set(uri);
+                copyBtn.set_icon_name('object-select-symbolic');
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
+                    copyBtn.set_icon_name('edit-copy-symbolic');
+                    return GLib.SOURCE_REMOVE;
+                });
+            } catch (e) { }
+        });
+        uriRow.add_suffix(copyBtn);
+        group.add(uriRow);
+
+        const accountRow = new Adw.ActionRow({ title: 'Status' });
+        const connectBtn = new Gtk.Button({ valign: Gtk.Align.CENTER });
+        accountRow.add_suffix(connectBtn);
+        group.add(accountRow);
+
+        const api = new SpotifyApi(settings);
+
+        const refreshStatus = () => {
+            if (api.isConnected()) {
+                const name = settings.get_string('spotify-display-name') || 'Connected';
+                accountRow.set_subtitle(`Connected as ${name}`);
+                connectBtn.set_label('Disconnect');
+                connectBtn.set_css_classes(['destructive-action']);
+            } else {
+                accountRow.set_subtitle('Not connected');
+                connectBtn.set_label('Connect');
+                connectBtn.set_css_classes(['suggested-action']);
+            }
+        };
+
+        connectBtn.connect('clicked', () => {
+            if (api.isConnected()) {
+                api.clearTokens();
+                settings.set_string('spotify-display-name', '');
+                refreshStatus();
+                return;
+            }
+
+            if (!settings.get_string('spotify-client-id')) {
+                accountRow.set_subtitle('Enter your Client ID first.');
+                return;
+            }
+
+            connectBtn.set_sensitive(false);
+            accountRow.set_subtitle('Opening browser — approve access, then return here…');
+
+            api.connect((url) => Gio.AppInfo.launch_default_for_uri(url, null))
+                .then((me) => {
+                    settings.set_string('spotify-display-name', me.display_name || me.id || 'Connected');
+                    refreshStatus();
+                })
+                .catch((e) => {
+                    accountRow.set_subtitle(`Connection failed: ${e.message}`);
+                })
+                .finally(() => connectBtn.set_sensitive(true));
+        });
+
+        refreshStatus();
+    }
+
+    _buildBehaviorGroup(page, settings) {
+        const group = new Adw.PreferencesGroup({ title: 'Behavior' });
+        page.add(group);
+
+        const notifyRow = new Adw.SwitchRow({
+            title: 'Track Change Notifications',
+            subtitle: 'Show a desktop notification when the song changes',
+            icon_name: 'preferences-system-notifications-symbolic'
+        });
+        settings.bind('track-notifications', notifyRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        group.add(notifyRow);
     }
 
     _buildPanelLayoutGroup(page, settings, createResetBtn) {
@@ -695,8 +802,8 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
                 try {
                     Gio.AppInfo.launch_default_for_uri(url, window.get_display().get_app_launch_context());
                 } catch (e) {
-                    try { 
-                        imports.gi.GLib.spawn_command_line_async(`xdg-open ${url}`); 
+                    try {
+                        GLib.spawn_command_line_async(`xdg-open ${url}`);
                     } catch (_) { }
                 }
             });
@@ -734,7 +841,7 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
 
         group.add(new Adw.ActionRow({
             title: 'Narkagni',
-            subtitle: 'Author & Maintainer',
+            subtitle: 'Author &amp; Maintainer',
             icon_name: 'avatar-default-symbolic',
         }));
 
@@ -776,8 +883,8 @@ export default class SpotifyControllerPrefs extends ExtensionPreferences {
                 Gio.AppInfo.launch_default_for_uri('https://buymeacoffee.com/narkagni',
                     window.get_display().get_app_launch_context());
             } catch (e) {
-                try { 
-                    imports.gi.GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni'); 
+                try {
+                    GLib.spawn_command_line_async('xdg-open https://buymeacoffee.com/narkagni');
                 } catch (_) { }
             }
         });

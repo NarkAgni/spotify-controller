@@ -78,6 +78,31 @@
 }
 
 /* ==========================================================================
+   Volume row
+   ========================================================================== */
+.popup-volume-box {
+    spacing: 10px;
+    padding: 6px 5px 0 5px;
+}
+
+.popup-volume-box StButton {
+    width: 28px;
+}
+
+/* Sleep timer countdown label (next to the alarm button) */
+.sleep-timer-label {
+    color: #ffffff;
+    font-size: 0.8em;
+    font-weight: bold;
+    opacity: 0.85;
+    margin-left: 2px;
+}
+
+.btn-blue-hover:hover {
+    background-color: rgba(66, 135, 245, 1.0) !important;
+}
+
+/* ==========================================================================
    Media controls row
    ========================================================================== */
 .media-controls-item {
@@ -202,6 +227,43 @@
     font-size: 1.2em;
     padding-bottom: 0px;
     color: #ffffff;
+}
+
+.popup-pin-btn {
+    border-radius: 8px;
+    padding: 3px;
+    color: rgba(255, 255, 255, 0.45);
+    transition-duration: 150ms;
+}
+
+.popup-pin-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.popup-pin-btn.pinned {
+    color: #1db954;
+    background-color: rgba(29, 185, 84, 0.15);
+}
+
+.popup-pin-icon {
+    icon-size: 16px;
+}
+
+.popup-view-toggle-btn {
+    border-radius: 8px;
+    padding: 3px;
+    color: rgba(255, 255, 255, 0.45);
+    transition-duration: 150ms;
+}
+
+.popup-view-toggle-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.popup-view-toggle-icon {
+    icon-size: 16px;
 }
 
 /* ==========================================================================

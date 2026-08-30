@@ -22,7 +22,7 @@ A deeply customizable music player that lives in your panel - with ambient visua
 
 ## Overview
 
-Spotify Controller is a premium GNOME Shell extension that transforms your music experience. It brings a full-featured player directly into your desktop - complete with ambient album art backgrounds, real-time synchronized lyrics, a multi-playlist manager, and a glassmorphic UI that looks stunning against any wallpaper. Built for aesthetics, power, and zero friction.
+Spotify Controller is a premium GNOME Shell extension that transforms your music experience. It brings a full-featured player directly into your desktop - complete with ambient album art backgrounds, real-time synchronized lyrics, a manager for your real Spotify playlists and Liked Songs, and a glassmorphic UI that looks stunning against any wallpaper. Built for aesthetics, power, and zero friction.
 
 <div align="center">
   <img src="media/panel.png" alt="Panel View" width="100%" style="border-radius: 10px; margin: 12px 0;">
@@ -57,17 +57,18 @@ A visual experience unlike any other GNOME extension.
 - **Dynamic Ambient Background** - Dominant colors are extracted from the current track's cover art and applied as a live gradient across the popup
 - **Spinning Cover Art** - Album art rotates like a vinyl record while music plays; speed and radius are fully adjustable in settings
 - **Polished Hover Effects** - Every button and list item has smooth, custom hover states - YouTube Red on "Play All", Vibrant Purple on "Shuffle", Soft Red on the Heart icon
+- **Pin to Keep Open** - Click the pin icon in the popup header to keep it open while you switch to other windows; click again to return to normal auto-close
 
-### Advanced Multi-Playlist Manager
+### Real Spotify Playlist Manager
 
-A complete playlist system, built right into the extension.
+Manage your actual Spotify library, right from the panel. *(Requires linking your account once — see [Connecting Your Spotify Account](#connecting-your-spotify-account).)*
 
-- **Custom Playlists** - Create unlimited playlists, rename them on the fly with the edit icon, and delete them anytime
-- **Quick Add** - Save the currently playing song to any playlist instantly with the `+` button on the main player page
+- **Your Real Playlists** - Browse, create, rename, and delete (unfollow) the playlists in your Spotify account
+- **Quick Add** - Save the currently playing song to any playlist instantly with the `+` button
 - **Smart Search** - A search bar automatically appears once a list grows beyond 5 items, so you can filter fast
-- **Track Intelligence** - Each playlist automatically displays its song count and total playback time (e.g., `5 songs • 19 min`)
+- **Track Intelligence** - Each playlist displays its song count and total playback time (e.g., `5 songs • 19 min`)
 
-> **Note:** Playlists are managed entirely by the extension and are independent of your Spotify account. Songs must be added and played from within the extension - if you change tracks directly in the Spotify app, the extension's playlist system will not reflect that change.
+> **Note:** Everything syncs directly with your Spotify account via the Spotify Web API. Creating a playlist, adding a song, or tapping the heart updates your real library.
 
 ### Liked Songs System
 
@@ -76,7 +77,7 @@ Your favorites, always one tap away.
 - **In-Player Heart Button** - A dedicated Heart icon next to the playback slider saves the current track to Liked Songs with a single click; the icon glows with a glassy soft-red color when active
 - **Dedicated Liked Songs Page** - A separate section collects all your favorite tracks in one easy-to-access list
 
-> **Note:** Liked Songs are stored locally by the extension and are separate from your Spotify account's saved library. Liking a song here won't sync to Spotify, and songs liked in the Spotify app won't appear here.
+> **Note:** The heart syncs with your real Spotify **Liked Songs** — liking here saves to your account, and songs you've already liked on Spotify show up in the list.
 
 ### Smart Playback & Queue Control
 
@@ -86,19 +87,28 @@ Full control over what plays and when.
 - **Play All & Shuffle** - Every playlist has dedicated action buttons at the top to play in order or at random
 - **Full Media Controls** - Play, Pause, Next, Previous, and Repeat, all wired up and ready
 - **Smooth Seek Slider** - A buttery-smooth progress slider lets you seek precisely through any track
+- **Volume Slider & Mute** - Adjust volume from an in-popup slider with a one-click mute toggle (or scroll on the panel)
+- **Sleep Timer** - Tap the alarm icon to auto-pause playback after 15, 30, 45, or 60 minutes
 
 ### Real-Time Synchronized Lyrics
 
 One click to sing along.
 
-- **One-Click Overlay** - Tap the cover art to instantly transition to a synchronized lyrics view; tap again to return
+- **One-Tap View Toggle** - A dedicated button in the popup header flips between the cover art and the synchronized lyrics view (tapping the cover still opens lyrics too)
 - **Auto-Scroll** - Lyrics scroll automatically in sync with the track's current timestamp - no manual interaction needed
+- **Click to Seek** - Tap any lyric line to jump playback straight to that moment
+- **Manual Scroll** - Scroll through the lyrics yourself with the mouse wheel; it auto-resumes following the song after a few seconds
+- **Instant on Revisit** - Lyrics are cached in memory and on disk, so a song you've already opened loads instantly and works offline
+
+### Desktop Notifications
+
+- **Track-Change Toasts** - Optionally show a desktop notification with cover art whenever the song changes (enable in Preferences → Behavior)
 
 ### Smart Backend & Optimization
 
 Fast, lean, and built to last.
 
-- **Offline Data** - All custom playlists and liked songs are saved locally in a `spotify-playlist.json` file - no cloud dependency
+- **Secure Account Link** - Your Spotify connection uses OAuth (PKCE); access tokens refresh automatically and the extension never sees your password
 - **Image Caching** - Cover art is cached to a `.cache` folder after the first download, saving bandwidth and reducing RAM usage on every subsequent play
 - **Auto Garbage Collector** - Old, unused cached images are silently purged over time, keeping your storage clean
 
@@ -121,11 +131,16 @@ Open the Spotify Controller preferences to fine-tune everything:
 |--------|-----|
 | Play / Pause | Click the panel button or use the popup |
 | Next / Previous | Panel buttons or popup controls |
-| Adjust Volume | Mouse wheel scroll on the panel widget |
+| Adjust Volume | Panel scroll, or the in-popup volume slider + mute |
 | Seek through track | Click and drag the progress slider |
-| View Lyrics | Click the album art in the popup |
-| Like current song | Click the Heart icon next to the slider |
+| View Lyrics | Click the album art, or the toggle button in the popup header |
+| Back to cover art | Click the toggle button in the popup header |
+| Jump to a lyric | Click any line in the lyrics view |
+| Keep popup open | Click the pin icon in the popup header |
+| Set a sleep timer | Click the alarm icon next to the slider |
+| Like current song | Click the Heart icon next to the slider (syncs to Spotify) |
 | Manage playlists | Open the popup → navigate to Playlists |
+| Connect Spotify | Preferences → Spotify Account → Connect |
 
 ---
 
@@ -141,7 +156,7 @@ Open the Spotify Controller preferences to fine-tune everything:
 
 ### From Source
 
-**Requirements:** GNOME Shell 45–50 · `libglib2.0-bin` · Spotify (App or Web Player)
+**Requirements:** GNOME Shell 45–50 · `libglib2.0-bin` · Spotify (App or Web Player) · a free Spotify Developer Client ID for playlist/Liked features (see [below](#connecting-your-spotify-account))
 
 ```bash
 # 1. Clone the repository
@@ -158,6 +173,23 @@ make install
 # 4. Enable the extension
 gnome-extensions enable spotify-controller@narkagni
 ```
+
+---
+
+## Connecting Your Spotify Account
+
+Playlists and Liked Songs use the Spotify Web API, so you link a free Spotify app **once**:
+
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and click **Create app** (free).
+2. In the app's **Settings**, add this exact **Redirect URI**:
+   ```
+   http://127.0.0.1:8888/callback
+   ```
+3. Copy the app's **Client ID**.
+4. Open **Spotify Controller Preferences → General → Spotify Account**, paste the Client ID, and click **Connect**.
+5. Approve access in the browser — the row updates to *"Connected as &lt;you&gt;"*.
+
+> Creating playlists and saving Liked Songs work on **free** Spotify accounts. Playback runs through your local Spotify app (MPRIS), so it works regardless of plan. The Client ID is public to the PKCE flow and is stored locally; the extension never sees your password.
 
 ---
 

@@ -16,6 +16,7 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
+import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import PangoCairo from 'gi://PangoCairo';
 
@@ -27,13 +28,17 @@ export const LyricsWidget = GObject.registerClass({
     _init(width, height) {
         super._init({
             style_class: 'lyrics-widget',
-            reactive: false,
+            reactive: true,
             can_focus: false,
             x_expand: true,
             y_expand: true,
             width,
             height
         });
+
+        this._seekCallback = null;
+        this.connect('button-release-event', (actor, event) => this._onClick(event));
+        this.connect('scroll-event', (actor, event) => this._onScroll(event));
 
         this._lyrics = [];
         this._lineGeometries = [];
@@ -44,6 +49,9 @@ export const LyricsWidget = GObject.registerClass({
         this._targetScrollOffset = 0;
         this._tickId = 0;
         this._state = 'loading';
+
+        this._userScrolling = false;
+        this._userScrollTimer = 0;
 
         this._config = {
             activeColor: { r: 1, g: 1, b: 1, a: 1 },
@@ -83,6 +91,64 @@ export const LyricsWidget = GObject.registerClass({
         }
         
         return { r: 1, g: 1, b: 1, a: 1 };
+    }
+
+    setSeekCallback(cb) {
+        this._seekCallback = cb;
+    }
+
+    _onClick(event) {
+        if (this._state !== 'lyrics' || !this._seekCallback)
+            return Clutter.EVENT_PROPAGATE;
+
+        const [, absY] = this.get_transformed_position();
+        const [, evY] = event.get_coords();
+        const localY = (evY - absY) + this._scrollOffset;
+
+        for (const geo of this._lineGeometries) {
+            if (localY >= geo.y && localY <= geo.y + geo.height) {
+                this._seekCallback(geo.time);
+                return Clutter.EVENT_STOP;
+            }
+        }
+        // No line hit: let the click fall through (e.g. to toggle lyrics view).
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _onScroll(event) {
+        if (this._state !== 'lyrics') return Clutter.EVENT_PROPAGATE;
+
+        const maxScroll = Math.max(0, this._totalHeight - this.height);
+        if (maxScroll <= 0) return Clutter.EVENT_PROPAGATE;
+
+        const dir = event.get_scroll_direction();
+        let delta = 0;
+        if (dir === Clutter.ScrollDirection.UP) delta = -40;
+        else if (dir === Clutter.ScrollDirection.DOWN) delta = 40;
+        else if (dir === Clutter.ScrollDirection.SMOOTH) {
+            const [, dy] = event.get_scroll_delta();
+            delta = dy * 40;
+        } else {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        const offset = Math.min(Math.max(this._scrollOffset + delta, 0), maxScroll);
+        this._scrollOffset = offset;
+        this._targetScrollOffset = offset;
+        this._userScrolling = true;
+
+        // Resume auto-follow a few seconds after the last manual scroll.
+        if (this._userScrollTimer) GLib.source_remove(this._userScrollTimer);
+        this._userScrollTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 4000, () => {
+            this._userScrolling = false;
+            this._userScrollTimer = 0;
+            this._startAnimation();
+            this.queue_repaint();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        this.queue_repaint();
+        return Clutter.EVENT_STOP;
     }
 
     updateAppearance(config) {
@@ -219,6 +285,7 @@ export const LyricsWidget = GObject.registerClass({
                 y: cursorY,
                 height: textHeight,
                 text: line.text,
+                time: line.time,
                 font,
                 active,
                 neighbor
@@ -229,7 +296,7 @@ export const LyricsWidget = GObject.registerClass({
 
         this._totalHeight = Math.max(cursorY - this._config.spacing, 0);
 
-        if (this._activeIndex >= 0) {
+        if (this._activeIndex >= 0 && !this._userScrolling) {
             const geo = this._lineGeometries[this._activeIndex];
             if (geo) {
                 const maxScroll = Math.max(0, this._totalHeight - height);
@@ -264,6 +331,21 @@ export const LyricsWidget = GObject.registerClass({
             PangoCairo.show_layout(cr, layout);
         });
 
+        // Scrollbar indicator (only when the content overflows).
+        const maxScroll = Math.max(0, this._totalHeight - height);
+        if (maxScroll > 0) {
+            const trackW = 3;
+            const trackX = width - trackW - 4;
+            const thumbH = Math.max(24, height * (height / this._totalHeight));
+            const thumbY = (this._scrollOffset / maxScroll) * (height - thumbH);
+            const ac = this._config.activeColor;
+            const alpha = this._userScrolling ? 0.55 : 0.18;
+
+            cr.setSourceRGBA(ac.r, ac.g, ac.b, alpha);
+            cr.rectangle(trackX, thumbY, trackW, thumbH);
+            cr.fill();
+        }
+
         cr.$dispose();
     }
 
@@ -271,6 +353,10 @@ export const LyricsWidget = GObject.registerClass({
         if (this._tickId) {
             GLib.source_remove(this._tickId);
             this._tickId = 0;
+        }
+        if (this._userScrollTimer) {
+            GLib.source_remove(this._userScrollTimer);
+            this._userScrollTimer = 0;
         }
         super.destroy();
     }

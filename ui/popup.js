@@ -20,20 +20,22 @@ import Soup from 'gi://Soup';
 import Pango from 'gi://Pango';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
-import GdkPixbuf from 'gi://GdkPixbuf';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import { Slider } from 'resource:///org/gnome/shell/ui/slider.js';
 
 import { MediaSlider } from './slider.js';
 import { PlaylistUI } from './playlistUI.js';
 import { LyricsWidget } from './LyricsWidget.js';
-import { PlaylistManager } from '../core/playlist.js';
+import { SpotifyPlaylistManager } from '../core/spotifyPlaylistManager.js';
 import { LyricsClient } from '../core/LyricsClient.js';
 import { QueueManager } from '../core/queueManager.js';
+import { extractDominantColor } from '../core/colorExtractor.js';
 
 
 Gio._promisify(Soup.Session.prototype, "send_and_read_async", "send_and_read_finish");
 Gio._promisify(Gio.File.prototype, "replace_contents_bytes_async", "replace_contents_finish");
-Gio._promisify(GdkPixbuf.Pixbuf, "new_from_stream_async", "new_from_stream_finish");
 
 export class MediaPopup {
     constructor(menu, settings, controlsCallback) {
@@ -42,13 +44,14 @@ export class MediaPopup {
         this._callbacks = controlsCallback;
 
         this._isPlaying = false;
+        this._pinned = false;
         this._menu.box.add_style_class_name('spotify-popup-menu');
 
         this._currentTrackHash = null;
         this._currentRGB = null;
         this._currentImageUri = null;
 
-        this._playlistManager = new PlaylistManager();
+        this._playlistManager = new SpotifyPlaylistManager(this._settings);
         this._popupMode = 'normal';
 
         this._lyricsClient = new LyricsClient();
@@ -126,6 +129,7 @@ export class MediaPopup {
 
     async updateTrack(info) {
         const newHash = info.title + info.artist;
+        const wasFirstTrack = this._currentTrackHash === null;
 
         this._queueManager.checkTrackChange(info.trackId, info.position, info.length);
 
@@ -164,6 +168,12 @@ export class MediaPopup {
         this._updateStyles();
         this._updateBackground();
         this._checkRotationState();
+
+        let notifyOnChange = false;
+        try { notifyOnChange = this._settings.get_boolean('track-notifications'); } catch (e) { }
+        if (notifyOnChange && !wasFirstTrack && !this._menu.isOpen) {
+            this._notifyTrackChange(info);
+        }
     }
 
     _updateBackground() {
@@ -208,11 +218,42 @@ export class MediaPopup {
         this._headerItem = new PopupMenu.PopupBaseMenuItem({
             reactive: false, can_focus: false, style_class: 'popup-header-item'
         });
-        this._headerItem.actor.x_align = Clutter.ActorAlign.CENTER;
-        
-        this.headerLabel = new St.Label({ style_class: 'popup-header-label' });
-        this._headerItem.add_child(this.headerLabel);
-        
+
+        const headerBox = new St.BoxLayout({ x_expand: true, style_class: 'popup-header-box' });
+
+        // Lyrics/cover toggle on the left (mirrors the pin button on the right,
+        // keeping the title centered). Dedicated button so users can switch back
+        // to the cover without clicking a lyric line (which seeks playback).
+        this.viewToggleBtn = new St.Button({
+            style_class: 'popup-view-toggle-btn',
+            child: new St.Icon({ icon_name: 'media-view-subtitles-symbolic', style_class: 'popup-view-toggle-icon' }),
+            can_focus: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.viewToggleBtn.connect('clicked', () => {
+            if (this._popupMode === 'normal' || this._popupMode === 'lyrics') this._toggleLyricsView();
+        });
+        headerBox.add_child(this.viewToggleBtn);
+
+        this.headerLabel = new St.Label({
+            style_class: 'popup-header-label',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        headerBox.add_child(this.headerLabel);
+
+        this.pinBtn = new St.Button({
+            style_class: 'popup-pin-btn',
+            child: new St.Icon({ icon_name: 'view-pin-symbolic', style_class: 'popup-pin-icon' }),
+            can_focus: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.pinBtn.connect('clicked', () => this._togglePin());
+        headerBox.add_child(this.pinBtn);
+
+        this._headerItem.add_child(headerBox);
+
         this._contentBox.add_child(this._headerItem.actor);
 
         this._updateHeaderText();
@@ -245,6 +286,14 @@ export class MediaPopup {
         this.lyricsWidget = new LyricsWidget(300, 300);
         this.lyricsWidget.opacity = 0;
         this.lyricsWidget.visible = false;
+
+        this.lyricsWidget.setSeekCallback((timeMs) => {
+            if (!this._lastTrackInfo || !this._lastTrackInfo.length) return;
+            const percent = Math.max(0, Math.min(1, (timeMs * 1000) / this._lastTrackInfo.length));
+            this._callbacks.seek(percent);
+            this.slider.syncPosition(timeMs * 1000);
+            this.lyricsWidget.updatePosition(timeMs);
+        });
 
         this.lyricsOverlayLabel = new St.Label({
             text: "Show Lyrics", style_class: 'lyrics-overlay-label', opacity: 0,
@@ -326,10 +375,11 @@ export class MediaPopup {
         
         this.likedBtn.connect('clicked', () => {
             if (!this._lastTrackInfo) return;
-            const nowLiked = this._playlistManager.toggleLike(this._lastTrackInfo);
-            this._currentLiked = nowLiked;
-            this._updateLikedBtnStyle();
-            if (this._popupMode === 'liked') this._playlistUI.setMode('liked');
+            if (!this._playlistManager.isConnected()) return;
+            this._playlistManager.toggleLike(this._lastTrackInfo).then(nowLiked => {
+                this._currentLiked = nowLiked;
+                this._updateLikedBtnStyle();
+            });
         });
         
         this.likedBtn.connect('button-release-event', (actor, event) => {
@@ -355,8 +405,26 @@ export class MediaPopup {
             }
         });
 
+        this.sleepBtn = new St.Button({
+            child: new St.Icon({ icon_name: 'alarm-symbolic', icon_size: 14 }),
+            style_class: 'playlist-icon-btn btn-blue-hover',
+            reactive: true,
+            track_hover: true
+        });
+
+        this.sleepLabel = new St.Label({
+            text: '',
+            style_class: 'sleep-timer-label',
+            y_align: Clutter.ActorAlign.CENTER,
+            visible: false
+        });
+
+        this.sleepBtn.connect('clicked', () => this._cycleSleepTimer());
+
         plusBox.add_child(this.likedBtn);
         plusBox.add_child(this.addPlaylistBtn);
+        plusBox.add_child(this.sleepBtn);
+        plusBox.add_child(this.sleepLabel);
 
         const totalBox = new St.BoxLayout({ y_align: Clutter.ActorAlign.CENTER, style_class: 'popup-total-box' });
         this.totalLabel = new St.Label({ text: '0:00', style_class: 'time-label' });
@@ -368,9 +436,36 @@ export class MediaPopup {
         timeBox.add_child(totalBox);
 
         this.slider = new MediaSlider((val) => this._callbacks.seek(val), this.elapsedLabel, this._settings);
-        
+
         sliderBox.add_child(timeBox);
         sliderBox.add_child(this.slider);
+
+        const volumeBox = new St.BoxLayout({ x_expand: true, style_class: 'popup-volume-box', y_align: Clutter.ActorAlign.CENTER });
+
+        this.muteBtn = new St.Button({
+            child: new St.Icon({ icon_name: 'audio-volume-high-symbolic', icon_size: 14 }),
+            style_class: 'playlist-icon-btn',
+            reactive: true,
+            track_hover: true
+        });
+        this.muteBtn.connect('clicked', () => this._toggleMute());
+
+        this._volumeSlider = new Slider(1.0);
+        this._volumeSlider.x_expand = true;
+        this._volumeSlider.connect('notify::value', () => {
+            if (this._syncingVolume) return;
+            const v = this._volumeSlider.value;
+            this._callbacks.setVolume(v);
+            this._isMuted = (v === 0);
+            this._updateVolumeIcon(v);
+        });
+        this._volumeSlider.connect('drag-begin', () => { this._userVolumeAdjusting = true; });
+        this._volumeSlider.connect('drag-end', () => { this._userVolumeAdjusting = false; });
+
+        volumeBox.add_child(this.muteBtn);
+        volumeBox.add_child(this._volumeSlider);
+
+        sliderBox.add_child(volumeBox);
         this._sliderItem.add_child(sliderBox);
         
         this._playlistItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, can_focus: false });
@@ -484,6 +579,7 @@ export class MediaPopup {
     _toggleLyricsView() {
         this._isLyricsMode = !this._isLyricsMode;
         this._popupMode = this._isLyricsMode ? 'lyrics' : 'normal';
+        this._updateViewToggleUI();
         const duration = 500;
 
         if (this._isLyricsMode) {
@@ -508,14 +604,29 @@ export class MediaPopup {
         }
     }
 
+    /**
+     * Toggles the playlist view. Used by the panel's configurable mouse
+     * actions ('Open Playlist'), mirroring the in-popup playlist button.
+     */
+    togglePlaylistView() {
+        if (this._popupMode === 'playlist' || this._popupMode === 'liked') {
+            this.setPopupMode('normal');
+        } else {
+            this.setPopupMode('playlist');
+        }
+    }
+
     setPopupMode(mode) {
         this._popupMode = mode;
         if (mode === 'playlist' || mode === 'liked') {
             if (this._isLyricsMode) this._toggleLyricsView();
+            if (this.viewToggleBtn) this.viewToggleBtn.hide();
             this._playlistUI.setMode(mode);
             this._updatePlaylistPagesVisibility(true);
         } else {
             this._isLyricsMode = false;
+            if (this.viewToggleBtn) this.viewToggleBtn.show();
+            this._updateViewToggleUI();
             this.lyricsWidget.hide();
             this.lyricsWidget.opacity = 0;
             this._artWrapper.show();
@@ -575,6 +686,177 @@ export class MediaPopup {
     _updateHeaderText() {
         if (this.headerLabel) {
             this.headerLabel.set_text(this._settings.get_string('custom-header-text') || 'Spotify');
+        }
+    }
+
+    // ---- Pin (keep popup open) -------------------------------------------
+
+    _togglePin() {
+        this._pinned = !this._pinned;
+        if (this._callbacks.setPinned) this._callbacks.setPinned(this._pinned);
+        this._updatePinUI();
+    }
+
+    /** Clears the pin from the panel side (e.g. when toggled shut). */
+    unpin() {
+        if (!this._pinned) return;
+        this._pinned = false;
+        if (this._callbacks.setPinned) this._callbacks.setPinned(false);
+        this._updatePinUI();
+    }
+
+    /** Swaps the header toggle icon to reflect the view it switches *to*. */
+    _updateViewToggleUI() {
+        if (!this.viewToggleBtn) return;
+        this.viewToggleBtn.child.icon_name = this._isLyricsMode
+            ? 'image-x-generic-symbolic'      // currently lyrics → click for cover
+            : 'media-view-subtitles-symbolic'; // currently cover → click for lyrics
+    }
+
+    _updatePinUI() {
+        if (!this.pinBtn) return;
+        if (this._pinned) {
+            this.pinBtn.add_style_class_name('pinned');
+            this.pinBtn.child.icon_name = 'view-pin-symbolic';
+        } else {
+            this.pinBtn.remove_style_class_name('pinned');
+        }
+    }
+
+    // ---- Volume control ---------------------------------------------------
+
+    _setVolumeUI(v) {
+        this._syncingVolume = true;
+        this._volumeSlider.value = v;
+        this._syncingVolume = false;
+        this._updateVolumeIcon(v);
+    }
+
+    _updateVolumeIcon(v) {
+        if (!this.muteBtn) return;
+        let icon = 'audio-volume-muted-symbolic';
+        if (v > 0.66) icon = 'audio-volume-high-symbolic';
+        else if (v > 0.33) icon = 'audio-volume-medium-symbolic';
+        else if (v > 0) icon = 'audio-volume-low-symbolic';
+        this.muteBtn.child.icon_name = icon;
+    }
+
+    _toggleMute() {
+        const current = this._volumeSlider.value;
+        if (this._isMuted || current === 0) {
+            const restore = this._volumeBeforeMute || 0.5;
+            this._setVolumeUI(restore);
+            this._callbacks.setVolume(restore);
+            this._isMuted = false;
+        } else {
+            this._volumeBeforeMute = current;
+            this._setVolumeUI(0);
+            this._callbacks.setVolume(0);
+            this._isMuted = true;
+        }
+    }
+
+    _syncVolume() {
+        if (this._userVolumeAdjusting) return;
+        if (!this._callbacks.getVolume) return;
+
+        const vol = this._callbacks.getVolume();
+        if (typeof vol !== 'number') return;
+
+        if (Math.abs(vol - this._volumeSlider.value) > 0.005) {
+            this._setVolumeUI(vol);
+            this._isMuted = (vol === 0);
+        }
+    }
+
+    // ---- Sleep timer ------------------------------------------------------
+
+    _cycleSleepTimer() {
+        const steps = [0, 15, 30, 45, 60];
+        const idx = steps.indexOf(this._sleepMinutes || 0);
+        const next = steps[(idx + 1) % steps.length];
+        this._setSleepTimer(next);
+    }
+
+    _setSleepTimer(minutes) {
+        if (this._sleepTimerId) {
+            GLib.source_remove(this._sleepTimerId);
+            this._sleepTimerId = null;
+        }
+
+        this._sleepMinutes = minutes;
+
+        if (minutes > 0) {
+            this._sleepEndTime = GLib.get_monotonic_time() + minutes * 60 * 1000000;
+            this._sleepTimerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, minutes * 60, () => {
+                this._sleepTimerId = null;
+                this._sleepMinutes = 0;
+                this._sleepEndTime = 0;
+                if (this._isPlaying) this._callbacks.playPause();
+                this._updateSleepUI();
+                return GLib.SOURCE_REMOVE;
+            });
+            this.sleepBtn.add_style_class_name('liked-btn-active');
+            this.sleepLabel.visible = true;
+        } else {
+            this._sleepEndTime = 0;
+            this.sleepBtn.remove_style_class_name('liked-btn-active');
+            this.sleepLabel.visible = false;
+        }
+
+        this._updateSleepUI();
+    }
+
+    _updateSleepUI() {
+        if (!this.sleepLabel) return;
+        if (!this._sleepMinutes || !this._sleepEndTime) {
+            this.sleepLabel.set_text('');
+            return;
+        }
+        const remainMicro = this._sleepEndTime - GLib.get_monotonic_time();
+        const remainMin = Math.max(0, Math.ceil(remainMicro / 60000000));
+        this.sleepLabel.set_text(`${remainMin}m`);
+    }
+
+    // ---- Track-change notification ---------------------------------------
+
+    _notifyTrackChange(info) {
+        try {
+            const title = info.title || 'Unknown Title';
+            const body = info.album ? `${info.artist} — ${info.album}` : (info.artist || '');
+
+            let gicon = null;
+            if (this._currentImageUri) {
+                try { gicon = Gio.icon_new_for_string(this._currentImageUri); } catch (e) { }
+            }
+
+            if (!this._notifSource) {
+                let source;
+                try {
+                    source = new MessageTray.Source({ title: 'Spotify', iconName: 'audio-x-generic-symbolic' });
+                } catch (e) {
+                    source = new MessageTray.Source('Spotify', 'audio-x-generic-symbolic');
+                }
+                Main.messageTray.add(source);
+                source.connect('destroy', () => { this._notifSource = null; });
+                this._notifSource = source;
+            }
+
+            const source = this._notifSource;
+            let notification;
+            try {
+                notification = new MessageTray.Notification({ source, title, body, gicon: gicon || undefined });
+            } catch (e) {
+                notification = new MessageTray.Notification(source, title, body, gicon ? { gicon } : {});
+            }
+
+            if (typeof notification.setTransient === 'function') notification.setTransient(true);
+            else notification.isTransient = true;
+
+            if (typeof source.addNotification === 'function') source.addNotification(notification);
+            else source.showNotification(notification);
+        } catch (e) {
+            try { Main.notify(info.title || 'Spotify', info.artist || ''); } catch (_) { }
         }
     }
 
@@ -790,13 +1072,26 @@ export class MediaPopup {
 
     updateControls(info) {
         if (!info) return;
-        
+
         this._lastTrackInfo = info;
-        const nowLiked = this._playlistManager.isLiked(info);
-        
-        if (this._currentLiked !== nowLiked) {
-            this._currentLiked = nowLiked;
+
+        this._syncVolume();
+        this._updateSleepUI();
+
+        // Reflect the cached liked-state immediately, and do an accurate
+        // Spotify check once per track change.
+        const likedHash = info.title + info.artist;
+        const cachedLiked = this._playlistManager.isLikedInfo(info);
+        if (this._currentLiked !== cachedLiked) {
+            this._currentLiked = cachedLiked;
             this._updateLikedBtnStyle();
+        }
+        if (this._playlistManager.isConnected() && this._likedCheckHash !== likedHash) {
+            this._likedCheckHash = likedHash;
+            this._playlistManager.refreshLikedState(info).then(liked => {
+                this._currentLiked = liked;
+                this._updateLikedBtnStyle();
+            });
         }
 
         const currentHash = info.title + info.artist;
@@ -858,16 +1153,6 @@ export class MediaPopup {
         if (this._isLyricsMode) this._fetchLyrics(info);
     }
 
-    _extractColor(pixbuf) {
-        try {
-            const scaled = pixbuf.scale_simple(1, 1, GdkPixbuf.InterpType.TILES);
-            const pixels = scaled.get_pixels();
-            return `${pixels[0]}, ${pixels[1]}, ${pixels[2]}`;
-        } catch (e) {
-            return null;
-        }
-    }
-
     async loadImage(artUrl) {
         if (!artUrl) return null;
         
@@ -913,23 +1198,9 @@ export class MediaPopup {
 
             if (fileReady) {
                 const targetFile = isLocal ? Gio.File.new_for_uri(artUrl) : file;
-                let resultColor = null;
-                
-                try {
-                    const path = targetFile.get_path();
-                    if (path) {
-                        const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path);
-                        resultColor = this._extractColor(pixbuf);
-                    } else {
-                        const inputStream = await targetFile.read_async(null, null);
-                        const pixbuf = await GdkPixbuf.Pixbuf.new_from_stream_async(inputStream, null);
-                        if (pixbuf) resultColor = this._extractColor(pixbuf);
-                    }
-                } catch (e) {
-                    console.warn("[SpotifyController] Pixbuf load failed:", e);
-                }
-                
-                return { uri: targetFile.get_uri(), id: uniqueID, color: resultColor };
+                const localPath = targetFile.get_path();
+                const color = localPath ? extractDominantColor(localPath) : null;
+                return { uri: targetFile.get_uri(), id: uniqueID, color };
             }
         } catch (e) {
             console.warn(`[SpotifyController] loadImage Error: ${e.message}`);
@@ -981,9 +1252,24 @@ export class MediaPopup {
         }
         
         this._removeLyricsTimer();
-        
+
+        if (this._sleepTimerId) {
+            GLib.source_remove(this._sleepTimerId);
+            this._sleepTimerId = null;
+        }
+
+        if (this._notifSource) {
+            this._notifSource.destroy();
+            this._notifSource = null;
+        }
+
         if (this._lyricsClient) {
             this._lyricsClient.destroy();
+        }
+
+        if (this._playlistManager) {
+            this._playlistManager.destroy();
+            this._playlistManager = null;
         }
         
         this._headerItem.destroy();

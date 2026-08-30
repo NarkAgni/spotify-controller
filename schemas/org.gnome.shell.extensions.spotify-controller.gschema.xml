@@ -34,6 +34,38 @@
             <summary>Show artist name in the top panel</summary>
         </key>
 
+        <key name="track-notifications" type="b">
+            <default>false</default>
+            <summary>Show a desktop notification when the track changes</summary>
+        </key>
+
+        <key name="spotify-client-id" type="s">
+            <default>''</default>
+            <summary>Spotify Developer app Client ID</summary>
+        </key>
+
+        <key name="spotify-redirect-port" type="i">
+            <default>8888</default>
+            <summary>Loopback port for the OAuth redirect</summary>
+        </key>
+
+        <key name="spotify-access-token" type="s">
+            <default>''</default>
+        </key>
+
+        <key name="spotify-refresh-token" type="s">
+            <default>''</default>
+        </key>
+
+        <key name="spotify-token-expiry" type="d">
+            <default>0</default>
+        </key>
+
+        <key name="spotify-display-name" type="s">
+            <default>''</default>
+            <summary>Connected Spotify account display name</summary>
+        </key>
+
         <key name="button-spacing" type="i">
             <default>0</default>
         </key>
