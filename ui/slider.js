@@ -38,7 +38,7 @@ export const MediaSlider = GObject.registerClass(
     class MediaSlider extends St.BoxLayout {
 
         constructor(onSeek, elapsedLabel, settings) {
-            super({ vertical: true, x_expand: true, reactive: true });
+            super({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, reactive: true });
 
             this._onSeek = onSeek;
             this._elapsedLabel = elapsedLabel;
