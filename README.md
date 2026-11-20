@@ -141,7 +141,7 @@ Open the Spotify Controller preferences to fine-tune everything:
 
 ### From Source
 
-**Requirements:** GNOME Shell 45–50 · `libglib2.0-bin` · Spotify (App or Web Player)
+**Requirements:** GNOME Shell 45–51 · `libglib2.0-bin` · Spotify (App or Web Player)
 
 ```bash
 # 1. Clone the repository

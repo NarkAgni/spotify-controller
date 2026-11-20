@@ -199,7 +199,7 @@ export class MediaPopup {
         this._masterContainer.add_child(this._bgLayer);
 
         this._contentBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_expand: true
         });
@@ -224,7 +224,7 @@ export class MediaPopup {
         this._artItem.actor.x_align = Clutter.ActorAlign.CENTER;
 
         const contentBox = new St.BoxLayout({
-            vertical: true, x_align: Clutter.ActorAlign.CENTER, style_class: 'art-content-box'
+            orientation: Clutter.Orientation.VERTICAL, x_align: Clutter.ActorAlign.CENTER, style_class: 'art-content-box'
         });
         this._artStack = new St.Widget({
             layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true, reactive: true
@@ -289,7 +289,7 @@ export class MediaPopup {
 
         contentBox.add_child(this._artStack);
 
-        const textBox = new St.BoxLayout({ vertical: true, x_align: Clutter.ActorAlign.CENTER, style_class: 'text-info-box' });
+        const textBox = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_align: Clutter.ActorAlign.CENTER, style_class: 'text-info-box' });
         
         this.titleLabel = new St.Label({ style_class: 'track-title-label', x_align: Clutter.ActorAlign.CENTER });
         this.titleLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
@@ -307,7 +307,7 @@ export class MediaPopup {
         this._sliderItem = new PopupMenu.PopupBaseMenuItem({ reactive: true, can_focus: false, style_class: 'slider-item' });
         this._sliderItem.activate = () => { };
         
-        const sliderBox = new St.BoxLayout({ vertical: true, x_expand: true, style_class: 'popup-slider-box' });
+        const sliderBox = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'popup-slider-box' });
         const timeBox = new St.BoxLayout({ x_expand: true, style_class: 'popup-time-box', y_align: Clutter.ActorAlign.CENTER });
         const elapsedBox = new St.BoxLayout({ y_align: Clutter.ActorAlign.CENTER });
         

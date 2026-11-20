@@ -23,11 +23,14 @@ install: build-schemas
 	@echo "Spotify Controller installed. Restart GNOME Shell to apply."
 
 pack: build-schemas
+	rm -f $(UUID).zip
 	zip -r $(UUID).zip . \
 		-x "*.git*" \
 		-x "Makefile" \
 		-x "README.md" \
 		-x "media/*" \
+		-x ".idea/*" \
+		-x ".idea" \
 		-x "*.zip"
 
 uninstall:

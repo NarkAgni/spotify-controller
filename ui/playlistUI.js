@@ -41,11 +41,11 @@ export class PlaylistUI {
     }
 
     _buildUI() {
-        this.container = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true });
+        this.container = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_expand: true });
 
-        this.playlistMainPage = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true });
+        this.playlistMainPage = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_expand: true });
         
-        const headerBox = new St.BoxLayout({ vertical: true, style_class: 'playlist-header-box' });
+        const headerBox = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, style_class: 'playlist-header-box' });
         const titleRow = new St.BoxLayout({ y_align: Clutter.ActorAlign.CENTER, style_class: 'playlist-header-title-row' });
         
         this.mainPlaylistBackBtn = new St.Button({
@@ -74,7 +74,7 @@ export class PlaylistUI {
         titleRow.add_child(spacer);
 
         const currentSongRow = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'playlist-current-song-row'
@@ -132,12 +132,12 @@ export class PlaylistUI {
         this.playlistMainPage.add_child(this.playlistSearchEntry);
 
         this.mainScrollView = new St.ScrollView({ hscrollbar_policy: St.PolicyType.NEVER, vscrollbar_policy: St.PolicyType.AUTOMATIC, x_expand: true, y_expand: true });
-        this.mainListContainer = new St.BoxLayout({ vertical: true, style_class: 'playlist-list-container' });
+        this.mainListContainer = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, style_class: 'playlist-list-container' });
         this.mainScrollView.set_child(this.mainListContainer);
         this.playlistMainPage.add_child(this.mainScrollView);
 
 
-        this.playlistDetailPage = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true, visible: false });
+        this.playlistDetailPage = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_expand: true, visible: false });
 
         const detailHeader = new St.BoxLayout({ style_class: 'playlist-detail-header', y_align: Clutter.ActorAlign.CENTER });
         this.playlistBackBtn = new St.Button({
@@ -150,7 +150,7 @@ export class PlaylistUI {
             this.setMode('playlist', true);
         });
 
-        const titleInfoBox = new St.BoxLayout({ vertical: true, x_expand: true });
+        const titleInfoBox = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true });
         this.playlistDetailNameLabel = new St.Label({ text: "Tracks", style_class: 'playlist-detail-name' });
         this.playlistTrackCountLabel = new St.Label({ text: "0 tracks • 0 min", style_class: 'playlist-track-count' });
         titleInfoBox.add_child(this.playlistDetailNameLabel);
@@ -160,19 +160,19 @@ export class PlaylistUI {
         detailHeader.add_child(titleInfoBox);
         this.playlistDetailPage.add_child(detailHeader);
 
-        this.detailAddBox = new St.BoxLayout({ vertical: true, x_expand: true, style: 'padding-right: 12px;' });
+        this.detailAddBox = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, style: 'padding-right: 12px;' });
         this.playlistDetailPage.add_child(this.detailAddBox);
 
         this.detailSearchEntry = this._createSearchBox('Search Songs...', (text) => this._renderPlaylistDetail(this._currentDetailPlaylist, text));
         this.playlistDetailPage.add_child(this.detailSearchEntry);
 
         this.detailScrollView = new St.ScrollView({ hscrollbar_policy: St.PolicyType.NEVER, vscrollbar_policy: St.PolicyType.AUTOMATIC, x_expand: true, y_expand: true });
-        this.detailListContainer = new St.BoxLayout({ vertical: true, style_class: 'playlist-list-container' });
+        this.detailListContainer = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, style_class: 'playlist-list-container' });
         this.detailScrollView.set_child(this.detailListContainer);
         this.playlistDetailPage.add_child(this.detailScrollView);
 
 
-        this.likedSongsPage = new St.BoxLayout({ vertical: true, x_expand: true, y_expand: true, visible: false });
+        this.likedSongsPage = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true, y_expand: true, visible: false });
         
         const likedHeader = new St.BoxLayout({ style_class: 'playlist-detail-header', y_align: Clutter.ActorAlign.CENTER });
         this.likedBackBtn = new St.Button({
@@ -185,7 +185,7 @@ export class PlaylistUI {
             this.setMode('playlist', true);
         });
 
-        const likedTitleBox = new St.BoxLayout({ vertical: true, x_expand: true });
+        const likedTitleBox = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true });
         likedTitleBox.add_child(new St.Label({ text: '♥ Liked Songs', style_class: 'playlist-detail-name playlist-liked-name' }));
         this.likedTrackCountLabel = new St.Label({ text: '0 songs', style_class: 'playlist-track-count' });
         likedTitleBox.add_child(this.likedTrackCountLabel);
@@ -223,7 +223,7 @@ export class PlaylistUI {
         this.likedSongsPage.add_child(this.likedSearchEntry);
 
         this.likedScrollView = new St.ScrollView({ hscrollbar_policy: St.PolicyType.NEVER, vscrollbar_policy: St.PolicyType.AUTOMATIC, x_expand: true, y_expand: true });
-        this.likedListContainer = new St.BoxLayout({ vertical: true, style_class: 'playlist-list-container' });
+        this.likedListContainer = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, style_class: 'playlist-list-container' });
         this.likedScrollView.set_child(this.likedListContainer);
         this.likedSongsPage.add_child(this.likedScrollView);
 
@@ -533,7 +533,7 @@ export class PlaylistUI {
         } else {
             filteredTracks.forEach(track => {
                 const row = new St.BoxLayout({ style_class: 'playlist-item-row', x_expand: true, reactive: true, track_hover: true });
-                const textLayout = new St.BoxLayout({ vertical: true, x_expand: true });
+                const textLayout = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true });
                 
                 textLayout.add_child(new St.Label({ text: track.title, style_class: 'playlist-item-name playlist-item-bold' }));
                 textLayout.add_child(new St.Label({ text: track.artist, style_class: 'playlist-item-sub' }));
@@ -610,7 +610,7 @@ export class PlaylistUI {
 
         filteredTracks.forEach(track => {
             const row = new St.BoxLayout({ style_class: 'playlist-item-row', x_expand: true, reactive: true, track_hover: true });
-            const textLayout = new St.BoxLayout({ vertical: true, x_expand: true });
+            const textLayout = new St.BoxLayout({ orientation: Clutter.Orientation.VERTICAL, x_expand: true });
             
             textLayout.add_child(new St.Label({ text: track.title, style_class: 'playlist-item-name playlist-item-bold' }));
             textLayout.add_child(new St.Label({ text: track.artist, style_class: 'playlist-item-sub' }));
